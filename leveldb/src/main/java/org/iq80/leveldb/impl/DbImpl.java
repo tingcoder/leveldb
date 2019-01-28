@@ -111,10 +111,10 @@ public class DbImpl
 
         mutex.lock();
         try {
-            // lock the database dir
+            // 通过"LOCK"文件，锁定目录
             dbLock = new DbLock(new File(databaseDir, Filename.lockFileName()));
 
-            // verify the "current" file
+            // 检查"CURRENT"文件是否可读
             File currentFile = new File(databaseDir, Filename.currentFileName());
             if (!currentFile.canRead()) {
                 checkArgument(options.createIfMissing(), "Database '%s' does not exist and the create if missing option is disabled", databaseDir);
@@ -122,8 +122,8 @@ public class DbImpl
                 checkArgument(!options.errorIfExists(), "Database '%s' exists and the error if exists option is enabled", databaseDir);
             }
 
+            //
             versions = new VersionSet(databaseDir, tableCache, internalKeyComparator);
-
             // load  (and recover) current version
             versions.recover();
 
@@ -142,7 +142,6 @@ public class DbImpl
             List<Long> logNums = new ArrayList<>();
             for (File filename : filenames) {
                 FileInfo fileInfo = Filename.parseFileName(filename);
-
                 if (fileInfo != null &&
                         fileInfo.getFileType() == FileType.LOG &&
                         ((fileInfo.getFileNumber() >= minLogNumber) || (fileInfo.getFileNumber() == previousLogNumber))) {
