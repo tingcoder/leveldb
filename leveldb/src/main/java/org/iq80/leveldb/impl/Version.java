@@ -38,18 +38,17 @@ import static org.iq80.leveldb.impl.SequenceNumber.MAX_SEQUENCE_NUMBER;
 import static org.iq80.leveldb.impl.VersionSet.MAX_GRAND_PARENT_OVERLAP_BYTES;
 
 // todo this class should be immutable
-public class Version
-        implements SeekingIterable<InternalKey, Slice> {
+public class Version implements SeekingIterable<InternalKey, Slice> {
     private final AtomicInteger retained = new AtomicInteger(1);
     private final VersionSet versionSet;
     private final Level0 level0;
     private final List<Level> levels;
 
     // move these mutable fields somewhere else
-    private int compactionLevel;
-    private double compactionScore;
     private FileMetaData fileToCompact;
+    private int compactionLevel;
     private int fileToCompactLevel;
+    private double compactionScore;
 
     public Version(VersionSet versionSet) {
         this.versionSet = versionSet;

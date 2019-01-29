@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2011 the original author or authors.
- * See the notice.md file distributed with this work for additional
- * information regarding copyright ownership.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.iq80.leveldb.util;
 
 import com.google.common.base.Throwables;
@@ -27,8 +10,10 @@ import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 
-public final class ByteBufferSupport
-{
+/**
+ * @author
+ */
+public final class ByteBufferSupport {
     private static final MethodHandle INVOKE_CLEANER;
 
     static {
@@ -42,8 +27,7 @@ public final class ByteBufferSupport
             invoker = MethodHandles.lookup()
                     .findVirtual(unsafeClass, "invokeCleaner", MethodType.methodType(void.class, ByteBuffer.class))
                     .bindTo(theUnsafe.get(null));
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             // fall back to pre-java 9 compatible behavior
             try {
                 Class<?> directByteBufferClass = Class.forName("java.nio.DirectByteBuffer");
@@ -59,24 +43,20 @@ public final class ByteBufferSupport
 
                 clean = MethodHandles.dropArguments(clean, 1, directByteBufferClass);
                 invoker = MethodHandles.foldArguments(clean, getCleaner);
-            }
-            catch (Exception e1) {
+            } catch (Exception e1) {
                 throw new AssertionError(e1);
             }
         }
         INVOKE_CLEANER = invoker;
     }
 
-    private ByteBufferSupport()
-    {
+    private ByteBufferSupport() {
     }
 
-    public static void unmap(MappedByteBuffer buffer)
-    {
+    public static void unmap(MappedByteBuffer buffer) {
         try {
             INVOKE_CLEANER.invoke(buffer);
-        }
-        catch (Throwable ignored) {
+        } catch (Throwable ignored) {
             throw Throwables.propagate(ignored);
         }
     }

@@ -59,7 +59,13 @@ public class VersionSet
      */
     private Version current;
     private long lastSequence;
+    /**
+     * 日志序列号
+     */
     private long logNumber;
+    /**
+     * pre日志序列号
+     */
     private long prevLogNumber;
 
     private final Map<Version, Object> activeVersions = new MapMaker().weakKeys().makeMap();
@@ -93,8 +99,11 @@ public class VersionSet
 
         VersionEdit edit = new VersionEdit();
         edit.setComparatorName(internalKeyComparator.name());
+        //默认为0
         edit.setLogNumber(prevLogNumber);
+        //默认值为2
         edit.setNextFileNumber(nextFileNumber.get());
+        //默认为0
         edit.setLastSequenceNumber(lastSequence);
 
         //指向"MANIFEST"的日志写入工具

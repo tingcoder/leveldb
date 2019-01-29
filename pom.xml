@@ -63,6 +63,7 @@
         <air.check.fail-checkstyle>${air.check.fail-basic}</air.check.fail-checkstyle>
 
         <air.javadoc.lint>-missing</air.javadoc.lint>
+        <lombok.version>1.16.12</lombok.version>
     </properties>
 
     <dependencyManagement>
@@ -77,6 +78,12 @@
                 <groupId>org.iq80.leveldb</groupId>
                 <artifactId>leveldb</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <!-- lombok -->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

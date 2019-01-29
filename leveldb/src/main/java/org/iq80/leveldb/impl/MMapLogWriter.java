@@ -1,28 +1,6 @@
-/*
- * Copyright (C) 2011 the original author or authors.
- * See the notice.md file distributed with this work for additional
- * information regarding copyright ownership.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.iq80.leveldb.impl;
 
-import org.iq80.leveldb.util.ByteBufferSupport;
-import org.iq80.leveldb.util.Closeables;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.SliceInput;
-import org.iq80.leveldb.util.SliceOutput;
-import org.iq80.leveldb.util.Slices;
+import org.iq80.leveldb.util.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,9 +17,10 @@ import static org.iq80.leveldb.impl.LogConstants.BLOCK_SIZE;
 import static org.iq80.leveldb.impl.LogConstants.HEADER_SIZE;
 import static org.iq80.leveldb.impl.Logs.getChunkChecksum;
 
-public class MMapLogWriter
-        implements LogWriter
-{
+/**
+ * @author
+ */
+public class MMapLogWriter implements LogWriter {
     private static final int PAGE_SIZE = 1024 * 1024;
 
     private final File file;
@@ -55,9 +34,7 @@ public class MMapLogWriter
      */
     private int blockOffset;
 
-    public MMapLogWriter(File file, long fileNumber)
-            throws IOException
-    {
+    public MMapLogWriter(File file, long fileNumber) throws IOException {
         requireNonNull(file, "file is null");
         checkArgument(fileNumber >= 0, "fileNumber is negative");
         this.file = file;
@@ -67,15 +44,12 @@ public class MMapLogWriter
     }
 
     @Override
-    public boolean isClosed()
-    {
+    public boolean isClosed() {
         return closed.get();
     }
 
     @Override
-    public synchronized void close()
-            throws IOException
-    {
+    public synchronized void close() throws IOException {
         closed.set(true);
 
         destroyMappedByteBuffer();
@@ -89,17 +63,14 @@ public class MMapLogWriter
     }
 
     @Override
-    public synchronized void delete()
-            throws IOException
-    {
+    public synchronized void delete() throws IOException {
         close();
 
         // try to delete the file
         file.delete();
     }
 
-    private void destroyMappedByteBuffer()
-    {
+    private void destroyMappedByteBuffer() {
         if (mappedByteBuffer != null) {
             fileOffset += mappedByteBuffer.position();
             unmap();
@@ -108,22 +79,24 @@ public class MMapLogWriter
     }
 
     @Override
-    public File getFile()
-    {
+    public File getFile() {
         return file;
     }
 
     @Override
-    public long getFileNumber()
-    {
+    public long getFileNumber() {
         return fileNumber;
     }
 
-    // Writes a stream of chunks such that no chunk is split across a block boundary
+    /**
+     * Writes a stream of chunks such that no chunk is split across a block boundary
+     *
+     * @param record
+     * @param force
+     * @throws IOException
+     */
     @Override
-    public synchronized void addRecord(Slice record, boolean force)
-            throws IOException
-    {
+    public synchronized void addRecord(Slice record, boolean force) throws IOException {
         checkState(!closed.get(), "Log has been closed");
 
         SliceInput sliceInput = record.input();
@@ -161,8 +134,7 @@ public class MMapLogWriter
             if (sliceInput.available() > bytesAvailableInBlock) {
                 end = false;
                 fragmentLength = bytesAvailableInBlock;
-            }
-            else {
+            } else {
                 end = true;
                 fragmentLength = sliceInput.available();
             }
@@ -171,14 +143,11 @@ public class MMapLogWriter
             LogChunkType type;
             if (begin && end) {
                 type = LogChunkType.FULL;
-            }
-            else if (begin) {
+            } else if (begin) {
                 type = LogChunkType.FIRST;
-            }
-            else if (end) {
+            } else if (end) {
                 type = LogChunkType.LAST;
-            }
-            else {
+            } else {
                 type = LogChunkType.MIDDLE;
             }
 
@@ -194,9 +163,7 @@ public class MMapLogWriter
         }
     }
 
-    private void writeChunk(LogChunkType type, Slice slice)
-            throws IOException
-    {
+    private void writeChunk(LogChunkType type, Slice slice) throws IOException {
         checkArgument(slice.length() <= 0xffff, "length %s is larger than two bytes", slice.length());
         checkArgument(blockOffset + HEADER_SIZE <= BLOCK_SIZE);
 
@@ -211,9 +178,7 @@ public class MMapLogWriter
         blockOffset += HEADER_SIZE + slice.length();
     }
 
-    private void ensureCapacity(int bytes)
-            throws IOException
-    {
+    private void ensureCapacity(int bytes) throws IOException {
         if (mappedByteBuffer.remaining() < bytes) {
             // remap
             fileOffset += mappedByteBuffer.position();
@@ -223,13 +188,11 @@ public class MMapLogWriter
         }
     }
 
-    private void unmap()
-    {
+    private void unmap() {
         ByteBufferSupport.unmap(mappedByteBuffer);
     }
 
-    private static Slice newLogRecordHeader(LogChunkType type, Slice slice)
-    {
+    private static Slice newLogRecordHeader(LogChunkType type, Slice slice) {
         int crc = getChunkChecksum(type.getPersistentId(), slice.getRawArray(), slice.getRawOffset(), slice.length());
 
         // Format the header

@@ -1,44 +1,20 @@
-/*
- * Copyright (C) 2011 the original author or authors.
- * See the notice.md file distributed with this work for additional
- * information regarding copyright ownership.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.iq80.leveldb.util;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
-public class Finalizer<T>
-{
-    public static final FinalizerMonitor IGNORE_FINALIZER_MONITOR = new FinalizerMonitor()
-    {
+public class Finalizer<T> {
+    public static final FinalizerMonitor IGNORE_FINALIZER_MONITOR = new FinalizerMonitor() {
         @Override
-        public void unexpectedException(Throwable throwable)
-        {
+        public void unexpectedException(Throwable throwable) {
         }
     };
 
@@ -50,25 +26,21 @@ public class Finalizer<T>
     private final AtomicBoolean destroyed = new AtomicBoolean();
     private ExecutorService executor;
 
-    public Finalizer()
-    {
+    public Finalizer() {
         this(1, IGNORE_FINALIZER_MONITOR);
     }
 
-    public Finalizer(int threads)
-    {
+    public Finalizer(int threads) {
         this(1, IGNORE_FINALIZER_MONITOR);
     }
 
-    public Finalizer(int threads, FinalizerMonitor monitor)
-    {
-        this.monitor = monitor;
+    public Finalizer(int threads, FinalizerMonitor monitor) {
         checkArgument(threads >= 1, "threads must be at least 1");
+        this.monitor = monitor;
         this.threads = threads;
     }
 
-    public synchronized void addCleanup(T item, Callable<?> cleanup)
-    {
+    public synchronized void addCleanup(T item, Callable<?> cleanup) {
         requireNonNull(item, "item is null");
         requireNonNull(cleanup, "cleanup is null");
         checkState(!destroyed.get(), "%s is destroyed", getClass().getName());
@@ -95,8 +67,7 @@ public class Finalizer<T>
         references.put(reference, Boolean.TRUE);
     }
 
-    public synchronized void destroy()
-    {
+    public synchronized void destroy() {
         destroyed.set(true);
         if (executor != null) {
             executor.shutdownNow();
@@ -104,51 +75,40 @@ public class Finalizer<T>
         for (FinalizerPhantomReference<T> r : references.keySet()) {
             try {
                 r.cleanup();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
             }
         }
     }
 
-    public interface FinalizerMonitor
-    {
+    public interface FinalizerMonitor {
         void unexpectedException(Throwable throwable);
     }
 
-    private static class FinalizerPhantomReference<T>
-            extends PhantomReference<T>
-    {
+    private static class FinalizerPhantomReference<T> extends PhantomReference<T> {
         private final AtomicBoolean cleaned = new AtomicBoolean(false);
         private final Callable<?> cleanup;
 
-        private FinalizerPhantomReference(T referent, ReferenceQueue<? super T> queue, Callable<?> cleanup)
-        {
+        private FinalizerPhantomReference(T referent, ReferenceQueue<? super T> queue, Callable<?> cleanup) {
             super(referent, queue);
             this.cleanup = cleanup;
         }
 
-        private void cleanup()
-                throws Exception
-        {
+        private void cleanup() throws Exception {
             if (cleaned.compareAndSet(false, true)) {
                 cleanup.call();
             }
         }
     }
 
-    private class FinalizerQueueProcessor
-            implements Runnable
-    {
+    private class FinalizerQueueProcessor implements Runnable {
         @Override
-        public void run()
-        {
+        public void run() {
             while (!destroyed.get()) {
                 // get the next reference to cleanup
                 FinalizerPhantomReference<T> reference;
                 try {
                     reference = (FinalizerPhantomReference<T>) referenceQueue.remove();
-                }
-                catch (InterruptedException e) {
+                } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return;
                 }
@@ -160,20 +120,17 @@ public class Finalizer<T>
                 try {
                     reference.cleanup();
                     rescheduleAndReturn = Thread.currentThread().isInterrupted();
-                }
-                catch (Throwable userException) {
+                } catch (Throwable userException) {
                     try {
                         monitor.unexpectedException(userException);
-                    }
-                    catch (Exception ignored) {
+                    } catch (Exception ignored) {
                         // todo consider a broader notification
                     }
 
                     if (userException instanceof InterruptedException) {
                         rescheduleAndReturn = true;
                         Thread.currentThread().interrupt();
-                    }
-                    else if (userException instanceof Error) {
+                    } else if (userException instanceof Error) {
                         rescheduleAndReturn = true;
                     }
                 }

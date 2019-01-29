@@ -68,20 +68,21 @@ public class DbImpl
 
     private ManualCompaction manualCompaction;
 
-    public DbImpl(Options options, File databaseDir)
-            throws IOException {
+    public DbImpl(Options options, File databaseDir) throws IOException {
         requireNonNull(options, "options is null");
         requireNonNull(databaseDir, "databaseDir is null");
-        this.options = options;
 
+        //修理options
+        this.options = options;
         if (this.options.compressionType() == CompressionType.SNAPPY && !Snappy.available()) {
             // Disable snappy if it's not available.
             this.options.compressionType(CompressionType.NONE);
         }
 
+        //实例路径
         this.databaseDir = databaseDir;
 
-        //use custom comparator if set
+        //使用自定义排序规则
         DBComparator comparator = options.comparator();
         UserComparator userComparator;
         if (comparator != null) {
@@ -90,6 +91,8 @@ public class DbImpl
             userComparator = new BytewiseComparator();
         }
         internalKeyComparator = new InternalKeyComparator(userComparator);
+
+        //实例化内存库
         memTable = new MemTable(internalKeyComparator);
         immutableMemTable = null;
 
@@ -102,6 +105,7 @@ public class DbImpl
 
         // Reserve ten files or so for other uses and give the rest to TableCache.
         int tableCacheSize = options.maxOpenFiles() - 10;
+        //实例化表缓存
         tableCache = new TableCache(databaseDir, tableCacheSize, new InternalUserComparator(internalKeyComparator), options.verifyChecksums());
 
         //初始化工作目录，若不存在，则自动创建
@@ -122,7 +126,7 @@ public class DbImpl
                 checkArgument(!options.errorIfExists(), "Database '%s' exists and the error if exists option is enabled", databaseDir);
             }
 
-            //
+            //恢复Version数据
             versions = new VersionSet(databaseDir, tableCache, internalKeyComparator);
             // load  (and recover) current version
             versions.recover();
@@ -142,9 +146,10 @@ public class DbImpl
             List<Long> logNums = new ArrayList<>();
             for (File filename : filenames) {
                 FileInfo fileInfo = Filename.parseFileName(filename);
-                if (fileInfo != null &&
-                        fileInfo.getFileType() == FileType.LOG &&
-                        ((fileInfo.getFileNumber() >= minLogNumber) || (fileInfo.getFileNumber() == previousLogNumber))) {
+                if (fileInfo != null || fileInfo.getFileType() != FileType.LOG) {
+                    continue;
+                }
+                if (fileInfo.getFileNumber() >= minLogNumber || fileInfo.getFileNumber() == previousLogNumber) {
                     logNums.add(fileInfo.getFileNumber());
                 }
             }
@@ -806,7 +811,7 @@ public class DbImpl
             }
 
             // Replace immutable memtable with the generated Table
-            edit.setPreviousLogNumber(0);
+            edit.setPreviousLogNumber(0L);
             edit.setLogNumber(log.getFileNumber());  // Earlier logs no longer needed
             versions.logAndApply(edit);
 
@@ -1225,8 +1230,9 @@ public class DbImpl
         }
     }
 
-    public static class DatabaseShutdownException
-            extends DBException {
+    public static class DatabaseShutdownException extends DBException {
+        private static final long serialVersionUID = -4460506240671018890L;
+
         public DatabaseShutdownException() {
         }
 
@@ -1235,8 +1241,9 @@ public class DbImpl
         }
     }
 
-    public static class BackgroundProcessingException
-            extends DBException {
+    public static class BackgroundProcessingException extends DBException {
+        private static final long serialVersionUID = -8700381038929852408L;
+
         public BackgroundProcessingException(Throwable cause) {
             super(cause);
         }
