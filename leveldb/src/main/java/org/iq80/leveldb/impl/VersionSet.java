@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2011 the original author or authors.
- * See the notice.md file distributed with this work for additional
- * information regarding copyright ownership.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.iq80.leveldb.impl;
 
 import com.google.common.base.Joiner;
@@ -41,8 +24,10 @@ import static java.util.Objects.requireNonNull;
 import static org.iq80.leveldb.impl.DbConstants.NUM_LEVELS;
 import static org.iq80.leveldb.impl.LogMonitors.throwExceptionMonitor;
 
-public class VersionSet
-        implements SeekingIterable<InternalKey, Slice> {
+/**
+ * @author
+ */
+public class VersionSet implements SeekingIterable<InternalKey, Slice> {
     private static final int L0_COMPACTION_TRIGGER = 4;
 
     public static final int TARGET_FILE_SIZE = 2 * 1048576;
@@ -289,8 +274,7 @@ public class VersionSet
         prevLogNumber = edit.getPreviousLogNumber();
     }
 
-    private void writeSnapshot(LogWriter log)
-            throws IOException {
+    private void writeSnapshot(LogWriter log) throws IOException {
         // Save metadata
         VersionEdit edit = new VersionEdit();
         edit.setComparatorName(internalKeyComparator.name());
@@ -305,8 +289,7 @@ public class VersionSet
         log.addRecord(record, false);
     }
 
-    public void recover()
-            throws IOException {
+    public void recover() throws IOException {
         // Read "CURRENT" file, which contains a pointer to the current manifest file
         File currentFile = new File(databaseDir, Filename.currentFileName());
         checkState(currentFile.exists(), "CURRENT file does not exist");

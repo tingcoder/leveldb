@@ -147,9 +147,13 @@ public class Version implements SeekingIterable<InternalKey, Slice> {
         // We can search level-by-level since entries never hop across
         // levels.  Therefore we are guaranteed that if we find data
         // in an smaller level, later levels are irrelevant.
+        //保存读取命中文件的信息
         ReadStats readStats = new ReadStats();
+
+        // step 1 : 先从Level0中查找key
         LookupResult lookupResult = level0.get(key, readStats);
         if (lookupResult == null) {
+            // step 2 : 从其他所有level中查找此key
             for (Level level : levels) {
                 lookupResult = level.get(key, readStats);
                 if (lookupResult != null) {

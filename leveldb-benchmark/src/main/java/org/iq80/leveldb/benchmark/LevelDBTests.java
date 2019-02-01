@@ -5,6 +5,7 @@ import org.iq80.leveldb.impl.Iq80DBFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 /***
@@ -19,7 +20,7 @@ public class LevelDBTests {
 
     public static void main(String[] args) throws IOException {
         LevelDBTests lt = new LevelDBTests();
-       /* lt.writeData("user-2-name", "雨果");
+        lt.writeData("user-2-name", "雨果");
 
         Map<String, String> batchData = new HashMap<>();
         batchData.put("user-1-name", "Frank");
@@ -37,7 +38,7 @@ public class LevelDBTests {
         System.out.println("10000条消息，花费" + spend + "毫秒");
 
         //遍历数据库
-         lt.iterateDB();*/
+       //  lt.iterateDB();
 
         String val = lt.getData("user-3-name");
         System.out.println(val);
