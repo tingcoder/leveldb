@@ -363,8 +363,7 @@ public class DbImpl
         }
     }
 
-    private void backgroundCall()
-            throws IOException {
+    private void backgroundCall() throws IOException {
         mutex.lock();
         try {
             if (backgroundCompaction == null) {
@@ -393,8 +392,7 @@ public class DbImpl
         }
     }
 
-    private void backgroundCompaction()
-            throws IOException {
+    private void backgroundCompaction() throws IOException {
         checkState(mutex.isHeldByCurrentThread());
 
         compactMemTableInternal();
@@ -444,8 +442,7 @@ public class DbImpl
         }
     }
 
-    private long recoverLogFile(long fileNumber, VersionEdit edit)
-            throws IOException {
+    private long recoverLogFile(long fileNumber, VersionEdit edit) throws IOException {
         checkState(mutex.isHeldByCurrentThread());
         File file = new File(databaseDir, Filename.logFileName(fileNumber));
         try (FileInputStream fis = new FileInputStream(file);
@@ -500,14 +497,12 @@ public class DbImpl
     }
 
     @Override
-    public byte[] get(byte[] key)
-            throws DBException {
+    public byte[] get(byte[] key) throws DBException {
         return get(key, new ReadOptions());
     }
 
     @Override
-    public byte[] get(byte[] key, ReadOptions options)
-            throws DBException {
+    public byte[] get(byte[] key, ReadOptions options) throws DBException {
         checkBackgroundException();
         LookupKey lookupKey;
         mutex.lock();
@@ -515,33 +510,27 @@ public class DbImpl
             SnapshotImpl snapshot = getSnapshot(options);
             lookupKey = new LookupKey(Slices.wrappedBuffer(key), snapshot.getLastSequence());
 
-            // First look in the memtable, then in the immutable memtable (if any).
+            // step 1 : 先从 memTable中查找
             LookupResult lookupResult = memTable.get(lookupKey);
             if (lookupResult != null) {
-                Slice value = lookupResult.getValue();
-                if (value == null) {
-                    return null;
-                }
-                return value.getBytes();
+                return getRresult(lookupResult);
             }
+
+            // step 2 : 从 immutableMemTable中查找
             if (immutableMemTable != null) {
                 lookupResult = immutableMemTable.get(lookupKey);
                 if (lookupResult != null) {
-                    Slice value = lookupResult.getValue();
-                    if (value == null) {
-                        return null;
-                    }
-                    return value.getBytes();
+                    return getRresult(lookupResult);
                 }
             }
         } finally {
             mutex.unlock();
         }
 
-        // Not in memTables; try live files in level order
+        // step 3 : 从SST文件中查找
         LookupResult lookupResult = versions.get(lookupKey);
 
-        // schedule compaction if necessary
+        // 检查看是否需要做后台merge操作
         mutex.lock();
         try {
             if (versions.needsCompaction()) {
@@ -551,11 +540,17 @@ public class DbImpl
             mutex.unlock();
         }
 
-        if (lookupResult != null) {
-            Slice value = lookupResult.getValue();
-            if (value != null) {
-                return value.getBytes();
-            }
+        //查询结果
+        if (lookupResult == null) {
+            return null;
+        }
+        return getRresult(lookupResult);
+    }
+
+    private byte[] getRresult(LookupResult lookupResult) {
+        Slice value = lookupResult.getValue();
+        if (value != null) {
+            return value.getBytes();
         }
         return null;
     }
