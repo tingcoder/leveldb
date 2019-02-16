@@ -17,7 +17,7 @@
  */
 package org.iq80.leveldb.table;
 
-import org.iq80.leveldb.util.Slice;
+import org.iq80.leveldb.slice.Slice;
 
 public class BytewiseComparator
         implements UserComparator

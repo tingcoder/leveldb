@@ -18,8 +18,8 @@
 package org.iq80.leveldb.table;
 
 import org.iq80.leveldb.impl.SeekingIterator;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.Slices;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.Slices;
 import org.testng.Assert;
 
 import java.util.Arrays;
@@ -30,10 +30,7 @@ import java.util.NoSuchElementException;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.iq80.leveldb.util.SizeOf.SIZE_OF_BYTE;
 import static org.iq80.leveldb.util.SizeOf.SIZE_OF_INT;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.*;
 
 public final class BlockHelper
 {

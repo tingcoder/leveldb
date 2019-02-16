@@ -18,9 +18,9 @@
 package org.iq80.leveldb.impl;
 
 import com.google.common.collect.Maps;
+import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.util.AbstractSeekingIterator;
 import org.iq80.leveldb.util.DbIterator;
-import org.iq80.leveldb.util.Slice;
 
 import java.util.Comparator;
 import java.util.Map.Entry;

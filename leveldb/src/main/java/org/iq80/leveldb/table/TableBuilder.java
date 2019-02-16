@@ -20,9 +20,9 @@ package org.iq80.leveldb.table;
 import com.google.common.base.Throwables;
 import org.iq80.leveldb.CompressionType;
 import org.iq80.leveldb.Options;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.Slices;
 import org.iq80.leveldb.util.PureJavaCrc32C;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.Slices;
 import org.iq80.leveldb.util.Snappy;
 
 import java.io.IOException;

@@ -3,11 +3,11 @@ package org.iq80.leveldb.impl;
 import com.google.common.base.Joiner;
 import com.google.common.collect.*;
 import com.google.common.io.Files;
+import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.table.UserComparator;
 import org.iq80.leveldb.util.InternalIterator;
 import org.iq80.leveldb.util.Level0Iterator;
 import org.iq80.leveldb.util.MergingIterator;
-import org.iq80.leveldb.util.Slice;
 
 import java.io.File;
 import java.io.FileInputStream;

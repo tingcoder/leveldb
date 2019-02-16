@@ -17,10 +17,10 @@
  */
 package org.iq80.leveldb.table;
 
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.Slices;
 import org.iq80.leveldb.util.ByteBufferSupport;
 import org.iq80.leveldb.util.Closeables;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.Slices;
 import org.iq80.leveldb.util.Snappy;
 
 import java.io.Closeable;

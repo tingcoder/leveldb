@@ -18,8 +18,8 @@
 package org.iq80.leveldb.table;
 
 import org.iq80.leveldb.impl.SeekingIterable;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.Slices;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.Slices;
 
 import java.util.Comparator;
 

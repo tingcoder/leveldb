@@ -24,13 +24,10 @@ import org.iq80.leveldb.impl.FileMetaData;
 import org.iq80.leveldb.impl.InternalKey;
 import org.iq80.leveldb.impl.SeekingIterator;
 import org.iq80.leveldb.impl.TableCache;
+import org.iq80.leveldb.slice.Slice;
 
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.NoSuchElementException;
-import java.util.PriorityQueue;
 
 public final class Level0Iterator
         extends AbstractSeekingIterator<InternalKey, Slice>

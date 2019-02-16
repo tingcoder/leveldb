@@ -17,7 +17,7 @@
  */
 package org.iq80.leveldb.impl;
 
-import org.iq80.leveldb.util.Slice;
+import org.iq80.leveldb.slice.Slice;
 import org.testng.annotations.Test;
 
 import java.io.File;

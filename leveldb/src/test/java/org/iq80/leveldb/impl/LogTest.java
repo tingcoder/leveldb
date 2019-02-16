@@ -18,9 +18,9 @@
 package org.iq80.leveldb.impl;
 
 import com.google.common.collect.ImmutableList;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.SliceOutput;
-import org.iq80.leveldb.util.Slices;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.SliceOutput;
+import org.iq80.leveldb.slice.Slices;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

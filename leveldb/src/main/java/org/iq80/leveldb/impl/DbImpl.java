@@ -7,11 +7,17 @@ import org.iq80.leveldb.impl.Filename.FileInfo;
 import org.iq80.leveldb.impl.Filename.FileType;
 import org.iq80.leveldb.impl.MemTable.MemTableIterator;
 import org.iq80.leveldb.impl.WriteBatchImpl.Handler;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.SliceInput;
+import org.iq80.leveldb.slice.SliceOutput;
+import org.iq80.leveldb.slice.Slices;
 import org.iq80.leveldb.table.BytewiseComparator;
 import org.iq80.leveldb.table.CustomUserComparator;
 import org.iq80.leveldb.table.TableBuilder;
 import org.iq80.leveldb.table.UserComparator;
-import org.iq80.leveldb.util.*;
+import org.iq80.leveldb.util.DbIterator;
+import org.iq80.leveldb.util.MergingIterator;
+import org.iq80.leveldb.util.Snappy;
 
 import java.io.*;
 import java.lang.Thread.UncaughtExceptionHandler;
@@ -32,11 +38,14 @@ import static org.iq80.leveldb.impl.DbConstants.*;
 import static org.iq80.leveldb.impl.SequenceNumber.MAX_SEQUENCE_NUMBER;
 import static org.iq80.leveldb.impl.ValueType.DELETION;
 import static org.iq80.leveldb.impl.ValueType.VALUE;
+import static org.iq80.leveldb.slice.Slices.readLengthPrefixedBytes;
+import static org.iq80.leveldb.slice.Slices.writeLengthPrefixedBytes;
 import static org.iq80.leveldb.util.SizeOf.SIZE_OF_INT;
 import static org.iq80.leveldb.util.SizeOf.SIZE_OF_LONG;
-import static org.iq80.leveldb.util.Slices.readLengthPrefixedBytes;
-import static org.iq80.leveldb.util.Slices.writeLengthPrefixedBytes;
 
+/**
+ * @author
+ */
 @SuppressWarnings("AccessingNonPublicFieldOfAnotherObject")
 public class DbImpl implements DB {
     private final Options options;
@@ -587,16 +596,16 @@ public class DbImpl implements DB {
         try {
             long sequenceEnd;
             if (updates.size() != 0) {
+                //step 1 : 为写入预留空间
                 makeRoomForWrite(false);
 
-                // Get sequence numbers for this change set
+                //step 2 : 计算新的sequence
                 long sequenceBegin = versions.getLastSequence() + 1;
                 sequenceEnd = sequenceBegin + updates.size() - 1;
-
                 // Reserve this sequence in the version set
                 versions.setLastSequence(sequenceEnd);
 
-                // Log write
+                //step 3 : 写入Log文件
                 Slice record = writeWriteBatch(updates, sequenceBegin);
                 try {
                     log.addRecord(record, options.sync());
@@ -604,7 +613,7 @@ public class DbImpl implements DB {
                     throw Throwables.propagate(e);
                 }
 
-                // Update memtable
+                //step 4 : 更新 memtable
                 updates.forEach(new InsertIntoHandler(memTable, sequenceBegin));
             } else {
                 sequenceEnd = versions.getLastSequence();
@@ -1156,10 +1165,15 @@ public class DbImpl implements DB {
     }
 
     private Slice writeWriteBatch(WriteBatchImpl updates, long sequenceBegin) {
+        //step 1 : 计算容量，申请空间
         Slice record = Slices.allocate(SIZE_OF_LONG + SIZE_OF_INT + updates.getApproximateSize());
+
+        //step 2 : 写入sequence和updateSize
         final SliceOutput sliceOutput = record.output();
         sliceOutput.writeLong(sequenceBegin);
         sliceOutput.writeInt(updates.size());
+
+        //step 3 : 写入更新指令
         updates.forEach(new Handler() {
             @Override
             public void put(Slice key, Slice value) {
@@ -1174,6 +1188,8 @@ public class DbImpl implements DB {
                 writeLengthPrefixedBytes(sliceOutput, key);
             }
         });
+
+        //step 4 : 拷贝结果并返回
         return record.slice(0, sliceOutput.size());
     }
 
@@ -1199,6 +1215,7 @@ public class DbImpl implements DB {
 
     public static class DatabaseShutdownException extends DBException {
         private static final long serialVersionUID = -4460506240671018890L;
+
         public DatabaseShutdownException(String message) {
             super(message);
         }

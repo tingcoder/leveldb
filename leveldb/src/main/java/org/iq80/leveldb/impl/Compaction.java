@@ -17,8 +17,8 @@
  */
 package org.iq80.leveldb.impl;
 
+import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.table.UserComparator;
-import org.iq80.leveldb.util.Slice;
 
 import java.util.List;
 

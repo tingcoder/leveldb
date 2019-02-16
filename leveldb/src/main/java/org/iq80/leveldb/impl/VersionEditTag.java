@@ -17,15 +17,15 @@
  */
 package org.iq80.leveldb.impl;
 
-import org.iq80.leveldb.util.SliceInput;
-import org.iq80.leveldb.util.SliceOutput;
+import org.iq80.leveldb.slice.SliceInput;
+import org.iq80.leveldb.slice.SliceOutput;
 import org.iq80.leveldb.util.VariableLengthQuantity;
 
 import java.util.Map.Entry;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.iq80.leveldb.util.Slices.readLengthPrefixedBytes;
-import static org.iq80.leveldb.util.Slices.writeLengthPrefixedBytes;
+import static org.iq80.leveldb.slice.Slices.readLengthPrefixedBytes;
+import static org.iq80.leveldb.slice.Slices.writeLengthPrefixedBytes;
 
 public enum VersionEditTag
 {

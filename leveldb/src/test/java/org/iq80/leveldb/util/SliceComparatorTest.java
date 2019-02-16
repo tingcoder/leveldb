@@ -17,6 +17,8 @@
  */
 package org.iq80.leveldb.util;
 
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.Slices;
 import org.testng.annotations.Test;
 
 import static java.nio.charset.StandardCharsets.UTF_8;

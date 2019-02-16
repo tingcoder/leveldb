@@ -17,6 +17,7 @@
  */
 package org.iq80.leveldb.util;
 
+import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.table.Block;
 import org.iq80.leveldb.table.BlockIterator;
 import org.iq80.leveldb.table.Table;

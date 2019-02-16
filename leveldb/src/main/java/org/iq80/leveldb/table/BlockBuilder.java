@@ -18,16 +18,14 @@
 package org.iq80.leveldb.table;
 
 import com.google.common.primitives.Ints;
-import org.iq80.leveldb.util.DynamicSliceOutput;
+import org.iq80.leveldb.slice.DynamicSliceOutput;
+import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.util.IntVector;
-import org.iq80.leveldb.util.Slice;
 import org.iq80.leveldb.util.VariableLengthQuantity;
 
 import java.util.Comparator;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkPositionIndex;
-import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Preconditions.*;
 import static java.util.Objects.requireNonNull;
 import static org.iq80.leveldb.util.SizeOf.SIZE_OF_INT;
 

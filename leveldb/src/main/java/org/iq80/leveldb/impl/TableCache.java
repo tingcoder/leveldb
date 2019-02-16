@@ -1,13 +1,13 @@
 package org.iq80.leveldb.impl;
 
 import com.google.common.cache.*;
+import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.table.FileChannelTable;
 import org.iq80.leveldb.table.MMapTable;
 import org.iq80.leveldb.table.Table;
 import org.iq80.leveldb.table.UserComparator;
 import org.iq80.leveldb.util.Finalizer;
 import org.iq80.leveldb.util.InternalTableIterator;
-import org.iq80.leveldb.util.Slice;
 
 import java.io.File;
 import java.io.FileInputStream;

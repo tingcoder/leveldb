@@ -17,10 +17,10 @@
  */
 package org.iq80.leveldb.table;
 
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.SliceInput;
-import org.iq80.leveldb.util.SliceOutput;
-import org.iq80.leveldb.util.Slices;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.SliceInput;
+import org.iq80.leveldb.slice.SliceOutput;
+import org.iq80.leveldb.slice.Slices;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;

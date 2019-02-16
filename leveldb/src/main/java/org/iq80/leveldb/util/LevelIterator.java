@@ -21,6 +21,7 @@ import org.iq80.leveldb.impl.FileMetaData;
 import org.iq80.leveldb.impl.InternalKey;
 import org.iq80.leveldb.impl.InternalKeyComparator;
 import org.iq80.leveldb.impl.TableCache;
+import org.iq80.leveldb.slice.Slice;
 
 import java.util.List;
 import java.util.Map.Entry;

@@ -1,21 +1,4 @@
-/*
- * Copyright (C) 2011 the original author or authors.
- * See the notice.md file distributed with this work for additional
- * information regarding copyright ownership.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package org.iq80.leveldb.util;
+package org.iq80.leveldb.slice;
 
 import java.io.DataOutput;
 import java.io.IOException;
@@ -26,10 +9,10 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.ScatteringByteChannel;
 import java.nio.charset.Charset;
 
-public abstract class SliceOutput
-        extends OutputStream
-        implements DataOutput
-{
+/**
+ * @author
+ */
+public abstract class SliceOutput extends OutputStream implements DataOutput {
     /**
      * Resets this stream to the initial position.
      */
@@ -54,14 +37,12 @@ public abstract class SliceOutput
     public abstract boolean isWritable();
 
     @Override
-    public final void writeBoolean(boolean value)
-    {
+    public final void writeBoolean(boolean value) {
         writeByte(value ? 1 : 0);
     }
 
     @Override
-    public final void write(int value)
-    {
+    public final void write(int value) {
         writeByte(value);
     }
 
@@ -115,7 +96,7 @@ public abstract class SliceOutput
      * does not.
      *
      * @throws IndexOutOfBoundsException if {@code source.readableBytes} is greater than
-     * {@code this.writableBytes}
+     *                                   {@code this.writableBytes}
      */
     public abstract void writeBytes(Slice source);
 
@@ -130,7 +111,7 @@ public abstract class SliceOutput
      *
      * @param length the number of bytes to transfer
      * @throws IndexOutOfBoundsException if {@code length} is greater than {@code this.writableBytes} or
-     * if {@code length} is greater then {@code source.readableBytes}
+     *                                   if {@code length} is greater then {@code source.readableBytes}
      */
     public abstract void writeBytes(SliceInput source, int length);
 
@@ -140,18 +121,16 @@ public abstract class SliceOutput
      * by the number of the transferred bytes (= {@code length}).
      *
      * @param sourceIndex the first index of the source
-     * @param length the number of bytes to transfer
+     * @param length      the number of bytes to transfer
      * @throws IndexOutOfBoundsException if the specified {@code sourceIndex} is less than {@code 0},
-     * if {@code sourceIndex + length} is greater than
-     * {@code source.capacity}, or
-     * if {@code length} is greater than {@code this.writableBytes}
+     *                                   if {@code sourceIndex + length} is greater than
+     *                                   {@code source.capacity}, or
+     *                                   if {@code length} is greater than {@code this.writableBytes}
      */
     public abstract void writeBytes(Slice source, int sourceIndex, int length);
 
     @Override
-    public final void write(byte[] source)
-            throws IOException
-    {
+    public final void write(byte[] source)            throws IOException {
         writeBytes(source);
     }
 
@@ -165,8 +144,7 @@ public abstract class SliceOutput
     public abstract void writeBytes(byte[] source);
 
     @Override
-    public final void write(byte[] source, int sourceIndex, int length)
-    {
+    public final void write(byte[] source, int sourceIndex, int length) {
         writeBytes(source, sourceIndex, length);
     }
 
@@ -176,11 +154,11 @@ public abstract class SliceOutput
      * by the number of the transferred bytes (= {@code length}).
      *
      * @param sourceIndex the first index of the source
-     * @param length the number of bytes to transfer
+     * @param length      the number of bytes to transfer
      * @throws IndexOutOfBoundsException if the specified {@code sourceIndex} is less than {@code 0},
-     * if {@code sourceIndex + length} is greater than
-     * {@code source.length}, or
-     * if {@code length} is greater than {@code this.writableBytes}
+     *                                   if {@code sourceIndex + length} is greater than
+     *                                   {@code source.length}, or
+     *                                   if {@code length} is greater than {@code this.writableBytes}
      */
     public abstract void writeBytes(byte[] source, int sourceIndex, int length);
 
@@ -191,7 +169,7 @@ public abstract class SliceOutput
      * number of the transferred bytes.
      *
      * @throws IndexOutOfBoundsException if {@code source.remaining()} is greater than
-     * {@code this.writableBytes}
+     *                                   {@code this.writableBytes}
      */
     public abstract void writeBytes(ByteBuffer source);
 
@@ -203,7 +181,7 @@ public abstract class SliceOutput
      * @param length the number of bytes to transfer
      * @return the actual number of bytes read in from the specified stream
      * @throws IndexOutOfBoundsException if {@code length} is greater than {@code this.writableBytes}
-     * @throws java.io.IOException if the specified stream threw an exception during I/O
+     * @throws java.io.IOException       if the specified stream threw an exception during I/O
      */
     public abstract int writeBytes(InputStream in, int length)
             throws IOException;
@@ -216,7 +194,7 @@ public abstract class SliceOutput
      * @param length the maximum number of bytes to transfer
      * @return the actual number of bytes read in from the specified channel
      * @throws IndexOutOfBoundsException if {@code length} is greater than {@code this.writableBytes}
-     * @throws java.io.IOException if the specified channel threw an exception during I/O
+     * @throws java.io.IOException       if the specified channel threw an exception during I/O
      */
     public abstract int writeBytes(ScatteringByteChannel in, int length)
             throws IOException;
@@ -262,7 +240,7 @@ public abstract class SliceOutput
      * this buffer.
      *
      * @throws java.nio.charset.UnsupportedCharsetException if the specified character set name is not supported by the
-     * current VM
+     *                                                      current VM
      */
     public abstract String toString(Charset charset);
 
@@ -276,8 +254,7 @@ public abstract class SliceOutput
      * @throws UnsupportedOperationException always
      */
     @Override
-    public void writeChar(int value)
-    {
+    public void writeChar(int value) {
         throw new UnsupportedOperationException();
     }
 
@@ -287,8 +264,7 @@ public abstract class SliceOutput
      * @throws UnsupportedOperationException always
      */
     @Override
-    public void writeFloat(float v)
-    {
+    public void writeFloat(float v) {
         throw new UnsupportedOperationException();
     }
 
@@ -298,8 +274,7 @@ public abstract class SliceOutput
      * @throws UnsupportedOperationException always
      */
     @Override
-    public void writeDouble(double v)
-    {
+    public void writeDouble(double v) {
         throw new UnsupportedOperationException();
     }
 
@@ -309,8 +284,7 @@ public abstract class SliceOutput
      * @throws UnsupportedOperationException always
      */
     @Override
-    public void writeChars(String s)
-    {
+    public void writeChars(String s) {
         throw new UnsupportedOperationException();
     }
 
@@ -320,8 +294,7 @@ public abstract class SliceOutput
      * @throws UnsupportedOperationException always
      */
     @Override
-    public void writeUTF(String s)
-    {
+    public void writeUTF(String s) {
         throw new UnsupportedOperationException();
     }
 
@@ -331,8 +304,7 @@ public abstract class SliceOutput
      * @throws UnsupportedOperationException always
      */
     @Override
-    public void writeBytes(String s)
-    {
+    public void writeBytes(String s) {
         throw new UnsupportedOperationException();
     }
 }

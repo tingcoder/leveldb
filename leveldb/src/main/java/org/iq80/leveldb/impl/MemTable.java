@@ -2,8 +2,8 @@ package org.iq80.leveldb.impl;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
+import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.util.InternalIterator;
-import org.iq80.leveldb.util.Slice;
 
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;

@@ -28,12 +28,12 @@ public class ConcurrentSkipListMapTest {
         System.out.println(u20Entry.getKey() + " <--> " + u20Entry.getValue());
 
         System.out.println("----------------------------------");
-        map.entrySet().forEach((entry)->{
+        map.entrySet().forEach((entry) -> {
             System.out.println(entry.getKey() + " <--> " + entry.getValue());
         });
         System.out.println("----------------------------------");
         map.remove("user-13");
-        map.entrySet().forEach((entry)->{
+        map.entrySet().forEach((entry) -> {
             System.out.println(entry.getKey() + " <--> " + entry.getValue());
         });
     }

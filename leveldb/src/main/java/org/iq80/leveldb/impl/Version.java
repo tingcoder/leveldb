@@ -21,7 +21,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
-import org.iq80.leveldb.util.*;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.util.InternalIterator;
+import org.iq80.leveldb.util.InternalTableIterator;
+import org.iq80.leveldb.util.LevelIterator;
+import org.iq80.leveldb.util.MergingIterator;
 
 import java.util.ArrayList;
 import java.util.Collection;

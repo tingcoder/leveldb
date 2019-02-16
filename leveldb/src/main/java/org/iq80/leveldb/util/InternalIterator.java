@@ -19,6 +19,7 @@ package org.iq80.leveldb.util;
 
 import org.iq80.leveldb.impl.InternalKey;
 import org.iq80.leveldb.impl.SeekingIterator;
+import org.iq80.leveldb.slice.Slice;
 
 /**
  * <p>A common interface for internal iterators.</p>

@@ -17,6 +17,8 @@
  */
 package org.iq80.leveldb.util;
 
+import org.iq80.leveldb.slice.SliceOutput;
+import org.iq80.leveldb.slice.Slices;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;

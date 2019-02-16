@@ -8,9 +8,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-import org.iq80.leveldb.util.DynamicSliceOutput;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.SliceInput;
+import org.iq80.leveldb.slice.DynamicSliceOutput;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.SliceInput;
 import org.iq80.leveldb.util.VariableLengthQuantity;
 
 import java.util.Map;

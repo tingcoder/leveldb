@@ -20,45 +20,26 @@ package org.iq80.leveldb.impl;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.UnsignedBytes;
-import org.iq80.leveldb.DB;
-import org.iq80.leveldb.DBComparator;
-import org.iq80.leveldb.DBIterator;
-import org.iq80.leveldb.Options;
-import org.iq80.leveldb.Range;
-import org.iq80.leveldb.ReadOptions;
-import org.iq80.leveldb.Snapshot;
-import org.iq80.leveldb.WriteBatch;
-import org.iq80.leveldb.WriteOptions;
+import org.iq80.leveldb.*;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.Slices;
 import org.iq80.leveldb.util.FileUtils;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.Slices;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.NoSuchElementException;
-import java.util.Random;
 
 import static com.google.common.collect.Maps.immutableEntry;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static org.iq80.leveldb.CompressionType.NONE;
 import static org.iq80.leveldb.impl.DbConstants.NUM_LEVELS;
-import static org.iq80.leveldb.table.BlockHelper.afterString;
-import static org.iq80.leveldb.table.BlockHelper.assertSequence;
-import static org.iq80.leveldb.table.BlockHelper.beforeString;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.iq80.leveldb.table.BlockHelper.*;
+import static org.testng.Assert.*;
 
 public class DbImplTest
 {

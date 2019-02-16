@@ -1,8 +1,8 @@
 package org.iq80.leveldb.impl;
 
 import lombok.Getter;
+import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.util.InternalTableIterator;
-import org.iq80.leveldb.util.Slice;
 
 import java.util.List;
 import java.util.Map;

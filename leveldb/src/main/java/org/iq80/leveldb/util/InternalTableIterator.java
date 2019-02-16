@@ -19,6 +19,7 @@ package org.iq80.leveldb.util;
 
 import com.google.common.collect.Maps;
 import org.iq80.leveldb.impl.InternalKey;
+import org.iq80.leveldb.slice.Slice;
 
 import java.util.Map.Entry;
 

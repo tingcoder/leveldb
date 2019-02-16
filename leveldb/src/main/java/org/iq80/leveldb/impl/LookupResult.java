@@ -1,7 +1,7 @@
 package org.iq80.leveldb.impl;
 
 import lombok.Getter;
-import org.iq80.leveldb.util.Slice;
+import org.iq80.leveldb.slice.Slice;
 
 import static java.util.Objects.requireNonNull;
 

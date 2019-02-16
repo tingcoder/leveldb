@@ -20,6 +20,7 @@ package org.iq80.leveldb.util;
 import org.iq80.leveldb.impl.InternalKey;
 import org.iq80.leveldb.impl.MemTable.MemTableIterator;
 import org.iq80.leveldb.impl.SeekingIterator;
+import org.iq80.leveldb.slice.Slice;
 
 import java.util.Comparator;
 import java.util.Iterator;

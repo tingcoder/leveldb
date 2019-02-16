@@ -18,8 +18,8 @@
 package org.iq80.leveldb.impl;
 
 import org.iq80.leveldb.DBIterator;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.Slices;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.Slices;
 
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;

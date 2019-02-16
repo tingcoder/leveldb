@@ -17,7 +17,7 @@
  */
 package org.iq80.leveldb.impl;
 
-import org.iq80.leveldb.util.Slice;
+import org.iq80.leveldb.slice.Slice;
 
 import java.io.File;
 import java.io.IOException;

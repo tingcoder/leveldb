@@ -1,38 +1,21 @@
-/*
- * Copyright (C) 2011 the original author or authors.
- * See the notice.md file distributed with this work for additional
- * information regarding copyright ownership.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.iq80.leveldb.util;
+
+import org.iq80.leveldb.slice.SliceInput;
+import org.iq80.leveldb.slice.SliceOutput;
 
 import java.nio.ByteBuffer;
 
+/**
+ * ~0x7f 的二进制： 1111 1111 1111 1111 1111 1111 1000 0000
+ *
+ * @author
+ */
 public final class VariableLengthQuantity {
     private VariableLengthQuantity() {
     }
 
-    public static void main(String[] args) {
-       int v = Integer.parseInt("100",2);
-        System.out.println(v);
-    }
-
     public static int variableLengthSize(int value) {
         int size = 1;
-        /**
-         * ~0x7f 的二进制： 1111 1111 1111 1111 1111 1111 1000 0000
-         */
         while ((value & (~0x7f)) != 0) {
             value >>>= 7;
             size++;
@@ -52,13 +35,15 @@ public final class VariableLengthQuantity {
     public static void writeVariableLengthInt(int value, SliceOutput sliceOutput) {
         //二进制: 1000 0000
         int highBitMask = 0x80;
-
         if (value < (1 << 7) && value >= 0) {
+            // 1 << 14 -> 0000 0000 0000 0000 1000 0000
             sliceOutput.writeByte(value);
         } else if (value < (1 << 14) && value > 0) {
+            // 1 << 14 -> 0000 0000 0100 0000 0000 0000
             sliceOutput.writeByte(value | highBitMask);
             sliceOutput.writeByte(value >>> 7);
         } else if (value < (1 << 21) && value > 0) {
+            // 1 << 14 -> 0010 0000 0000 0000 0000 0000
             sliceOutput.writeByte(value | highBitMask);
             sliceOutput.writeByte((value >>> 7) | highBitMask);
             sliceOutput.writeByte(value >>> 14);

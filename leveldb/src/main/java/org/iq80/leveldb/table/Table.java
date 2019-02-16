@@ -2,8 +2,8 @@ package org.iq80.leveldb.table;
 
 import com.google.common.base.Throwables;
 import org.iq80.leveldb.impl.SeekingIterable;
+import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.util.Closeables;
-import org.iq80.leveldb.util.Slice;
 import org.iq80.leveldb.util.TableIterator;
 import org.iq80.leveldb.util.VariableLengthQuantity;
 

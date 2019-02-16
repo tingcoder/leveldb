@@ -17,20 +17,12 @@
  */
 package org.iq80.leveldb.impl;
 
-import org.iq80.leveldb.util.DynamicSliceOutput;
-import org.iq80.leveldb.util.Slice;
-import org.iq80.leveldb.util.SliceInput;
-import org.iq80.leveldb.util.SliceOutput;
-import org.iq80.leveldb.util.Slices;
+import org.iq80.leveldb.slice.*;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
-import static org.iq80.leveldb.impl.LogChunkType.BAD_CHUNK;
-import static org.iq80.leveldb.impl.LogChunkType.EOF;
-import static org.iq80.leveldb.impl.LogChunkType.UNKNOWN;
-import static org.iq80.leveldb.impl.LogChunkType.ZERO_TYPE;
-import static org.iq80.leveldb.impl.LogChunkType.getLogChunkTypeByPersistentId;
+import static org.iq80.leveldb.impl.LogChunkType.*;
 import static org.iq80.leveldb.impl.LogConstants.BLOCK_SIZE;
 import static org.iq80.leveldb.impl.LogConstants.HEADER_SIZE;
 import static org.iq80.leveldb.impl.Logs.getChunkChecksum;

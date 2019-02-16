@@ -1,4 +1,6 @@
-package org.iq80.leveldb.util;
+package org.iq80.leveldb.slice;
+
+import org.iq80.leveldb.util.VariableLengthQuantity;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -9,6 +11,9 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * @author
+ */
 public final class Slices {
     public static Slice readLengthPrefixedBytes(SliceInput sliceInput) {
         int length = VariableLengthQuantity.readVariableLengthInt(sliceInput);

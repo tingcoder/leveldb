@@ -1,6 +1,11 @@
 package org.iq80.leveldb.impl;
 
-import org.iq80.leveldb.util.*;
+import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.slice.SliceInput;
+import org.iq80.leveldb.slice.SliceOutput;
+import org.iq80.leveldb.slice.Slices;
+import org.iq80.leveldb.util.ByteBufferSupport;
+import org.iq80.leveldb.util.Closeables;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,7 +20,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 import static org.iq80.leveldb.impl.LogConstants.BLOCK_SIZE;
 import static org.iq80.leveldb.impl.LogConstants.HEADER_SIZE;
-import static org.iq80.leveldb.impl.Logs.getChunkChecksum;
 
 /**
  * @author
@@ -29,8 +33,9 @@ public class MMapLogWriter implements LogWriter {
     private final AtomicBoolean closed = new AtomicBoolean();
     private MappedByteBuffer mappedByteBuffer;
     private long fileOffset;
+
     /**
-     * Current offset in the current block
+     * 当前block的偏移量
      */
     private int blockOffset;
 
@@ -158,6 +163,7 @@ public class MMapLogWriter implements LogWriter {
             begin = false;
         } while (sliceInput.isReadable());
 
+        //是否立即刷盘
         if (force) {
             mappedByteBuffer.force();
         }
@@ -183,7 +189,6 @@ public class MMapLogWriter implements LogWriter {
             // remap
             fileOffset += mappedByteBuffer.position();
             unmap();
-
             mappedByteBuffer = fileChannel.map(MapMode.READ_WRITE, fileOffset, PAGE_SIZE);
         }
     }
@@ -193,7 +198,7 @@ public class MMapLogWriter implements LogWriter {
     }
 
     private static Slice newLogRecordHeader(LogChunkType type, Slice slice) {
-        int crc = getChunkChecksum(type.getPersistentId(), slice.getRawArray(), slice.getRawOffset(), slice.length());
+        int crc = Logs.getChunkChecksum(type.getPersistentId(), slice.getRawArray(), slice.getRawOffset(), slice.length());
 
         // Format the header
         Slice header = Slices.allocate(HEADER_SIZE);
