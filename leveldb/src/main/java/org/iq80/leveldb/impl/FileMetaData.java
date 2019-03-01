@@ -37,7 +37,6 @@ public class FileMetaData
 
     /**
      * Seeks allowed until compaction
-     * TODO this mutable state should be moved elsewhere
      */
     private final AtomicInteger allowedSeeks = new AtomicInteger(1 << 30);
 
