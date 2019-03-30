@@ -302,6 +302,7 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
     }
 
     public void recover() throws IOException {
+        log.info("VersionSet的recover方法开始执行.....");
         // Read "CURRENT" file, which contains a pointer to the current manifest file
         File currentFile = new File(databaseDir, Filename.currentFileName());
         checkState(currentFile.exists(), "CURRENT file does not exist");
@@ -311,10 +312,10 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
             throw new IllegalStateException("CURRENT file does not end with newline");
         }
         currentName = currentName.substring(0, currentName.length() - 1);
+        log.info("读取{}内容:{}", currentFile.getName(), currentName);
 
         // open file channel
-        try (FileInputStream fis = new FileInputStream(new File(databaseDir, currentName));
-             FileChannel fileChannel = fis.getChannel()) {
+        try (FileInputStream fis = new FileInputStream(new File(databaseDir, currentName)); FileChannel fileChannel = fis.getChannel()) {
             // read log edit log
             Long nextFileNumber = null;
             Long lastSequence = null;
@@ -331,8 +332,8 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
                 // todo implement user comparator
                 String editComparator = edit.getComparatorName();
                 String userComparator = internalKeyComparator.name();
-                checkArgument(editComparator == null || editComparator.equals(userComparator),
-                        "Expected user comparator %s to match existing database comparator ", userComparator, editComparator);
+                String errMsgTpl = "Expected user comparator %s to match existing database comparator ";
+                checkArgument(editComparator == null || editComparator.equals(userComparator), errMsgTpl, userComparator, editComparator);
 
                 // apply edit
                 builder.apply(edit);
@@ -368,6 +369,7 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
             // Install recovered version
             finalizeVersion(newVersion);
 
+            //切换版本
             appendVersion(newVersion);
             manifestFileNumber = nextFileNumber;
             this.nextFileNumber.set(nextFileNumber + 1);

@@ -169,6 +169,7 @@ public class DbImpl implements DB {
             VersionEdit edit = new VersionEdit();
             Collections.sort(logFileNumbers);
             for (Long fileNumber : logFileNumbers) {
+                //基于logFile做恢复
                 long maxSequence = recoverLogFile(fileNumber, edit);
                 if (versionSet.getLastSequence() < maxSequence) {
                     versionSet.setLastSequence(maxSequence);
@@ -177,9 +178,10 @@ public class DbImpl implements DB {
 
             // open transaction logWriter
             long logFileNumber = versionSet.getNextFileNumber();
-            this.logWriter = Logs.createLogWriter(new File(databaseDir, Filename.logFileName(logFileNumber)), logFileNumber);
+            File txLogFile = new File(databaseDir, Filename.logFileName(logFileNumber));
+            this.logWriter = Logs.createLogWriter(txLogFile, logFileNumber);
             edit.setLogNumber(logWriter.getFileNumber());
-
+            log.info("将事务日志文件从切换至:{}", txLogFile.getName());
             // apply recovered edits
             versionSet.logAndApply(edit);
 
@@ -347,11 +349,11 @@ public class DbImpl implements DB {
         checkState(mutex.isHeldByCurrentThread());
         log.info("DB实例的maybeScheduleCompaction()方法执行");
         if (backgroundCompaction != null) {
-            // Already scheduled
+            log.info("后台合并正在进行中，本次compaction直接退出");
         } else if (shuttingDown.get()) {
-            // DB is being shutdown; no more background compactions
+            log.info("DB正在关闭中，放弃本次compaction");
         } else if (immutableMemTable == null && manualCompaction == null && !versionSet.needsCompaction()) {
-            // No work to be done
+            log.info("immutableMemTable==null且versionSet反馈不需要compaction，放弃本次合并");
         } else {
             log.info("启动异步compaction任务...");
             backgroundCompaction = compactionExecutor.submit(new Callable<Void>() {
@@ -377,7 +379,7 @@ public class DbImpl implements DB {
     }
 
     private void backgroundCall() throws IOException {
-        log.info("backgroundCall()方法进入....");
+        log.info("后台线程启动compaction 开始....");
         mutex.lock();
         try {
             if (backgroundCompaction == null) {
@@ -387,7 +389,7 @@ public class DbImpl implements DB {
 
             try {
                 if (!shuttingDown.get()) {
-
+                    log.info("系统没有进入“关闭中”，可以执行后台compaction");
                     backgroundCompaction();
                 }
             } finally {
@@ -410,7 +412,6 @@ public class DbImpl implements DB {
 
     private void backgroundCompaction() throws IOException {
         checkState(mutex.isHeldByCurrentThread());
-
 
         compactMemTableInternal();
 
@@ -458,16 +459,24 @@ public class DbImpl implements DB {
         }
     }
 
+    /**
+     * 根据指定编号的日志文件做数据恢复
+     *
+     * @param fileNumber 日志文件编号
+     * @param edit
+     * @return
+     * @throws IOException
+     */
     private long recoverLogFile(long fileNumber, VersionEdit edit) throws IOException {
         checkState(mutex.isHeldByCurrentThread());
+
         File file = new File(databaseDir, Filename.logFileName(fileNumber));
+        log.info("基于日志文件{}做数据恢复....", file.getName());
 
         try (FileInputStream fis = new FileInputStream(file);
              FileChannel channel = fis.getChannel()) {
             LogMonitor logMonitor = LogMonitors.logMonitor();
             LogReader logReader = new LogReader(channel, logMonitor, true, 0);
-
-            // Log(options_.info_log, "Recovering logWriter #%llu", (unsigned long long) log_number);
 
             // Read all the records and add to a memtable
             long maxSequence = 0;
@@ -805,9 +814,11 @@ public class DbImpl implements DB {
         }
 
         try {
-            // Save the contents of the memtable as a new Table
+            // Save the contents of the memTable as a new Table
             VersionEdit edit = new VersionEdit();
             Version base = versionSet.getCurrent();
+
+            //将immutableMemTable数据写入level0中
             writeLevel0Table(immutableMemTable, edit, base);
 
             if (shuttingDown.get()) {
@@ -819,8 +830,10 @@ public class DbImpl implements DB {
             edit.setLogNumber(logWriter.getFileNumber());  // Earlier logs no longer needed
             versionSet.logAndApply(edit);
 
+            //释放immutableMemTable引用
             immutableMemTable = null;
 
+            //清理无用文件
             deleteObsoleteFiles();
         } finally {
             backgroundCondition.signalAll();
@@ -861,6 +874,14 @@ public class DbImpl implements DB {
         }
     }
 
+    /**
+     * 根据键值对，构建sst的文件表格
+     *
+     * @param data       数据集合
+     * @param fileNumber sst文件编号
+     * @return sst表格文件的元数据
+     * @throws IOException
+     */
     private FileMetaData buildTable(SeekingIterable<InternalKey, Slice> data, long fileNumber) throws IOException {
         File file = new File(databaseDir, Filename.tableFileName(fileNumber));
         try {
