@@ -18,7 +18,7 @@ import java.util.concurrent.ExecutionException;
 import static java.util.Objects.requireNonNull;
 
 /**
- * TableCache连接编号和SST表的关系
+ * TableCache连接文件编号和SST表的关系
  *
  * @author
  */
@@ -84,15 +84,24 @@ public class TableCache {
     private static final class TableAndFile {
         private final Table table;
 
-        private TableAndFile(File databaseDir, long fileNumber, UserComparator userComparator, boolean verifyChecksums) throws IOException {
+        /**
+         * 根据文件编号和目录返回 ${fileNumber}.sst为存储介质的数据表格
+         *
+         * @param databaseDir     目录
+         * @param fileNumber      文件存储编号
+         * @param userComparator  比较器
+         * @param verifyCheckSums 是否做求和校验
+         * @throws IOException
+         */
+        private TableAndFile(File databaseDir, long fileNumber, UserComparator userComparator, boolean verifyCheckSums) throws IOException {
             String tableFileName = Filename.tableFileName(fileNumber);
             File tableFile = new File(databaseDir, tableFileName);
             try (FileInputStream fis = new FileInputStream(tableFile);
                  FileChannel fileChannel = fis.getChannel()) {
                 if (Iq80DBFactory.USE_MMAP) {
-                    table = new MMapTable(tableFile.getAbsolutePath(), fileChannel, userComparator, verifyChecksums);
+                    table = new MMapTable(tableFile.getAbsolutePath(), fileChannel, userComparator, verifyCheckSums);
                 } else {
-                    table = new FileChannelTable(tableFile.getAbsolutePath(), fileChannel, userComparator, verifyChecksums);
+                    table = new FileChannelTable(tableFile.getAbsolutePath(), fileChannel, userComparator, verifyCheckSums);
                 }
             }
         }

@@ -1,5 +1,6 @@
 package org.iq80.leveldb.benchmark;
 
+import lombok.extern.slf4j.Slf4j;
 import org.iq80.leveldb.*;
 import org.iq80.leveldb.impl.Iq80DBFactory;
 
@@ -11,6 +12,7 @@ import java.util.Map;
  * @author yfeng
  * @date 2019-01-22 11:58
  */
+@Slf4j
 public class LevelDBTests {
     private static final String dbDir = "E://BigData//LevelDB//db1";
     byte[] keyBytes = "user-1-name".getBytes();
@@ -82,7 +84,9 @@ public class LevelDBTests {
                 opts.createIfMissing(true);
                 opts.compressionType(CompressionType.NONE);
                 DBFactory dbFactory = new Iq80DBFactory();
+                log.info("创建DB实例---------------------------------------开始");
                 dbInstance = dbFactory.open(new File(dbDir), opts);
+                log.info("创建DB实例---------------------------------------成功");
             }
         }
         return dbInstance;
@@ -100,7 +104,9 @@ public class LevelDBTests {
 
     private void writeData(String k, String v) throws IOException {
         DB db = getDB();
+        log.info("写入----------------------开始");
         db.put(k.getBytes(), v.getBytes());
+        log.info("写入----------------------成功");
     }
 
     private String getData(String k) throws IOException {

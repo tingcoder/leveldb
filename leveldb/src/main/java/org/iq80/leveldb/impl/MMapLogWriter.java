@@ -1,5 +1,6 @@
 package org.iq80.leveldb.impl;
 
+import lombok.extern.slf4j.Slf4j;
 import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.slice.SliceInput;
 import org.iq80.leveldb.slice.SliceOutput;
@@ -24,6 +25,7 @@ import static org.iq80.leveldb.impl.LogConstants.HEADER_SIZE;
 /**
  * @author
  */
+@Slf4j
 public class MMapLogWriter implements LogWriter {
     private static final int PAGE_SIZE = 1024 * 1024;
 
@@ -157,13 +159,16 @@ public class MMapLogWriter implements LogWriter {
             }
 
             // write the chunk
-            writeChunk(type, sliceInput.readBytes(fragmentLength));
+            Slice writeData = sliceInput.readBytes(fragmentLength);
+            log.info("写入日志{}文件 数据type:{} data:{}", file.getName(), type, writeData);
+            writeChunk(type, writeData);
 
             // we are no longer on the first chunk
             begin = false;
         } while (sliceInput.isReadable());
 
         //是否立即刷盘
+        log.info("强刷磁盘: {}", force);
         if (force) {
             mappedByteBuffer.force();
         }

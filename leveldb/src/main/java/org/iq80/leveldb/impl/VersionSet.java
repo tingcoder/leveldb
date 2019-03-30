@@ -3,6 +3,7 @@ package org.iq80.leveldb.impl;
 import com.google.common.base.Joiner;
 import com.google.common.collect.*;
 import com.google.common.io.Files;
+import lombok.extern.slf4j.Slf4j;
 import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.table.UserComparator;
 import org.iq80.leveldb.util.InternalIterator;
@@ -27,6 +28,7 @@ import static org.iq80.leveldb.impl.LogMonitors.throwExceptionMonitor;
 /**
  * @author
  */
+@Slf4j
 public class VersionSet implements SeekingIterable<InternalKey, Slice> {
     private static final int L0_COMPACTION_TRIGGER = 4;
 
@@ -69,15 +71,24 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
         this.tableCache = tableCache;
         this.internalKeyComparator = internalKeyComparator;
 
-        //将current指向新的Version
+        //将current指向新的Version ， 并释放旧的Version
         appendVersion(new Version(this));
 
         initializeIfNeeded();
     }
 
+    /**
+     * 初始化CURRENT文件，仅仅在第一次初始化数据目录时需要被调用
+     *
+     * @throws IOException
+     */
     private void initializeIfNeeded() throws IOException {
+        //获取CURRENT文件
         File currentFile = new File(databaseDir, Filename.currentFileName());
+
+        //已经存在，则直接退出
         if (currentFile.exists()) {
+            log.info("{}已经存在，不需要VersionSet.initializeIfNeeded()", currentFile.getName());
             return;
         }
         //如工作目录下的"CURRENT"文件不存在，则进行初始化
@@ -92,7 +103,8 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
         edit.setLastSequenceNumber(lastSequence);
 
         //指向"MANIFEST"的日志写入工具
-        LogWriter log = Logs.createLogWriter(new File(databaseDir, Filename.descriptorFileName(manifestFileNumber)), manifestFileNumber);
+        File maniFestFile = new File(databaseDir, Filename.descriptorFileName(manifestFileNumber));
+        LogWriter log = Logs.createLogWriter(maniFestFile, manifestFileNumber);
         try {
             writeSnapshot(log);
             log.addRecord(edit.encode(), false);
@@ -190,6 +202,7 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
     }
 
     public LookupResult get(LookupKey key) {
+        log.info("进入Version current查找:{}", key);
         return current.get(key);
     }
 
@@ -214,8 +227,7 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
         this.lastSequence = newLastSequence;
     }
 
-    public void logAndApply(VersionEdit edit)
-            throws IOException {
+    public void logAndApply(VersionEdit edit) throws IOException {
         if (edit.getLogNumber() != null) {
             checkArgument(edit.getLogNumber() >= logNumber);
             checkArgument(edit.getLogNumber() < nextFileNumber.get());
@@ -689,8 +701,7 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
         /**
          * Saves the current state in specified version.
          */
-        public void saveTo(Version version)
-                throws IOException {
+        public void saveTo(Version version) throws IOException {
             FileMetaDataBySmallestKey cmp = new FileMetaDataBySmallestKey(versionSet.internalKeyComparator);
             for (int level = 0; level < baseVersion.numberOfLevels(); level++) {
                 // Merge the set of added files with the set of pre-existing files.
@@ -722,8 +733,7 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
             }
         }
 
-        private void maybeAddFile(Version version, int level, FileMetaData fileMetaData)
-                throws IOException {
+        private void maybeAddFile(Version version, int level, FileMetaData fileMetaData) throws IOException {
             if (levels.get(level).deletedFiles.contains(fileMetaData.getNumber())) {
                 // File is deleted: do nothing
             } else {
@@ -744,8 +754,7 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
             }
         }
 
-        private static class FileMetaDataBySmallestKey
-                implements Comparator<FileMetaData> {
+        private static class FileMetaDataBySmallestKey implements Comparator<FileMetaData> {
             private final InternalKeyComparator internalKeyComparator;
 
             private FileMetaDataBySmallestKey(InternalKeyComparator internalKeyComparator) {

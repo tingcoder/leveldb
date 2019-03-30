@@ -1,5 +1,7 @@
 package org.iq80.leveldb.impl;
 
+import com.alibaba.fastjson.JSON;
+import lombok.extern.slf4j.Slf4j;
 import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.table.UserComparator;
 import org.iq80.leveldb.util.Level0Iterator;
@@ -8,11 +10,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.iq80.leveldb.impl.SequenceNumber.MAX_SEQUENCE_NUMBER;
 import static org.iq80.leveldb.impl.ValueType.VALUE;
 
 // todo this class should be immutable
+@Slf4j
 public class Level0 extends LevelBase implements SeekingIterable<InternalKey, Slice> {
 
     public static final Comparator<FileMetaData> NEWEST_FIRST = new Comparator<FileMetaData>() {
@@ -32,7 +36,9 @@ public class Level0 extends LevelBase implements SeekingIterable<InternalKey, Sl
     }
 
     public LookupResult get(LookupKey key, ReadStats readStats) {
+        log.info("进入Level0查找:{} with readStats: {}", key, readStats);
         if (files.isEmpty()) {
+            log.info("level0 文件集合为空，查找失败");
             return null;
         }
         List<FileMetaData> fileMetaDataList = new ArrayList<>(files.size());
@@ -45,10 +51,17 @@ public class Level0 extends LevelBase implements SeekingIterable<InternalKey, Sl
 
         readStats.clear();
 
+        //打印日志
+        List<Long> srcFileNumbers = files.stream().map(fileMetaData -> fileMetaData.getNumber()).collect(Collectors.toList());
+        List<Long> targetFileNumbers = fileMetaDataList.stream().map(fileMetaData -> fileMetaData.getNumber()).collect(Collectors.toList());
+        log.info("从文件编号{}过滤出目标数据文件{}进行查找", JSON.toJSONString(srcFileNumbers), JSON.toJSONString(targetFileNumbers));
+
         // 循环遍历关联的文件进行查找
         for (FileMetaData fileMetaData : fileMetaDataList) {
+            log.info("level0 进入{}编号文件查找查找", fileMetaData.getNumber());
             LookupResult lookupResult = searchInFile(fileMetaData, key);
             if (lookupResult != null) {
+                log.info("level0 进入{}编号文件查找查找成功 ..... ", fileMetaData.getNumber());
                 return lookupResult;
             }
             if (readStats.getSeekFile() == null) {
