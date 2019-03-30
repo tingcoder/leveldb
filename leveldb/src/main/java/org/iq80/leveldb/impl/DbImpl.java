@@ -79,18 +79,16 @@ public class DbImpl implements DB {
     public DbImpl(Options options, File databaseDir) throws IOException {
         requireNonNull(options, "options is null");
         requireNonNull(databaseDir, "databaseDir is null");
-
-        //修理options
         this.options = options;
+
         if (this.options.compressionType() == CompressionType.SNAPPY && !Snappy.available()) {
             // Disable snappy if it's not available.
             this.options.compressionType(CompressionType.NONE);
         }
 
-        //实例路径
         this.databaseDir = databaseDir;
 
-        //使用自定义排序规则
+        //初始化key比较器
         DBComparator comparator = options.comparator();
         UserComparator userComparator;
         if (comparator != null) {
@@ -99,34 +97,39 @@ public class DbImpl implements DB {
             userComparator = new BytewiseComparator();
         }
         internalKeyComparator = new InternalKeyComparator(userComparator);
-
-        //实例化内存库
         memTable = new MemTable(internalKeyComparator);
         immutableMemTable = null;
 
-        //构建单线程的线程池，用于后台做日志的compaction操作
-        ThreadFactory compactionThreadFactory = compactionThreadFactory();
-        int poolSize = 1;
-        long keepAlive = 0;
-        BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
-        compactionExecutor = new ThreadPoolExecutor(poolSize, poolSize, keepAlive, TimeUnit.MILLISECONDS, queue, compactionThreadFactory);
+        ThreadFactory compactionThreadFactory = new ThreadFactoryBuilder()
+                .setNameFormat("leveldb-compaction-%s")
+                .setUncaughtExceptionHandler(new UncaughtExceptionHandler() {
+                    @Override
+                    public void uncaughtException(Thread t, Throwable e) {
+                        // todo need a real UncaughtExceptionHandler
+                        System.out.printf("%s%n", t);
+                        e.printStackTrace();
+                    }
+                })
+                .build();
+        compactionExecutor = Executors.newSingleThreadExecutor(compactionThreadFactory);
 
         // Reserve ten files or so for other uses and give the rest to TableCache.
         int tableCacheSize = options.maxOpenFiles() - 10;
-        //实例化表缓存
         tableCache = new TableCache(databaseDir, tableCacheSize, new InternalUserComparator(internalKeyComparator), options.verifyChecksums());
 
-        //初始化工作目录，若不存在，则自动创建
+        // create the version set
+
+        // create the database dir if it does not already exist
         databaseDir.mkdirs();
         checkArgument(databaseDir.exists(), "Database directory '%s' does not exist and could not be created", databaseDir);
         checkArgument(databaseDir.isDirectory(), "Database directory '%s' is not a directory", databaseDir);
 
         mutex.lock();
         try {
-            // 通过"LOCK"文件，锁定目录
+            // lock the database dir
             dbLock = new DbLock(new File(databaseDir, Filename.lockFileName()));
 
-            // 检查"CURRENT"文件是否可读
+            // verify the "current" file
             File currentFile = new File(databaseDir, Filename.currentFileName());
             if (!currentFile.canRead()) {
                 checkArgument(options.createIfMissing(), "Database '%s' does not exist and the create if missing option is disabled", databaseDir);
@@ -134,8 +137,8 @@ public class DbImpl implements DB {
                 checkArgument(!options.errorIfExists(), "Database '%s' exists and the error if exists option is enabled", databaseDir);
             }
 
-            //恢复Version数据
             versions = new VersionSet(databaseDir, tableCache, internalKeyComparator);
+
             // load  (and recover) current version
             versions.recover();
 
@@ -150,29 +153,25 @@ public class DbImpl implements DB {
             long previousLogNumber = versions.getPrevLogNumber();
             List<File> filenames = Filename.listFiles(databaseDir);
 
-            //遍历目录下的Log后缀文件
-            List<Long> logNums = new ArrayList<>();
+            List<Long> logs = new ArrayList<>();
             for (File filename : filenames) {
                 FileInfo fileInfo = Filename.parseFileName(filename);
-                if (fileInfo != null || fileInfo.getFileType() != FileType.LOG) {
-                    continue;
-                }
-                if (fileInfo.getFileNumber() >= minLogNumber || fileInfo.getFileNumber() == previousLogNumber) {
-                    logNums.add(fileInfo.getFileNumber());
+                if (fileInfo != null && fileInfo.getFileType() == FileType.LOG && ((fileInfo.getFileNumber() >= minLogNumber) || (fileInfo.getFileNumber() == previousLogNumber))) {
+                    logs.add(fileInfo.getFileNumber());
                 }
             }
 
             // Recover in the order in which the logs were generated
             VersionEdit edit = new VersionEdit();
-            Collections.sort(logNums);
-            for (Long fileNumber : logNums) {
+            Collections.sort(logs);
+            for (Long fileNumber : logs) {
                 long maxSequence = recoverLogFile(fileNumber, edit);
                 if (versions.getLastSequence() < maxSequence) {
                     versions.setLastSequence(maxSequence);
                 }
             }
 
-            //打开日志
+            // open transaction log
             long logFileNumber = versions.getNextFileNumber();
             this.log = Logs.createLogWriter(new File(databaseDir, Filename.logFileName(logFileNumber)), logFileNumber);
             edit.setLogNumber(log.getFileNumber());
@@ -183,7 +182,7 @@ public class DbImpl implements DB {
             // cleanup unused files
             deleteObsoleteFiles();
 
-            //开启后台合并sst文件合并任务
+            // schedule compactions
             maybeScheduleCompaction();
         } finally {
             mutex.unlock();

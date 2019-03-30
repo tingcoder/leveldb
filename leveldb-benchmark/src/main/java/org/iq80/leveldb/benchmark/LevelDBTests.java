@@ -19,7 +19,7 @@ public class LevelDBTests {
 
     public static void main(String[] args) throws IOException {
         LevelDBTests lt = new LevelDBTests();
-        lt.writeData("user-2-name", "雨果");
+        // lt.writeData("user-2-name", "雨果");
 
         /*
         Map<String, String> batchData = new HashMap<>();
@@ -38,7 +38,7 @@ public class LevelDBTests {
         System.out.println("10000条消息，花费" + spend + "毫秒");*/
 
 
-        String val = lt.getData("user-3-name");
+        String val = lt.getData("user-2-name");
         System.out.println(val);
 
         //关闭数据库

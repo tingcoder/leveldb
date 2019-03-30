@@ -73,7 +73,6 @@ public class Iq80DBFactory implements DBFactory {
 
     @Override
     public void destroy(File path, Options options) throws IOException {
-        // TODO: This should really only delete leveldb-created files.
         FileUtils.deleteRecursively(path);
     }
 

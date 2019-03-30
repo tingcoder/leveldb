@@ -39,6 +39,7 @@ public class MemTable implements SeekingIterable<InternalKey, Slice> {
         InternalKey internalKey = new InternalKey(key, sequenceNumber, valueType);
         table.put(internalKey, value);
 
+        //缓冲区大小记录
         approximateMemoryUsage.addAndGet(key.length() + SIZE_OF_LONG + value.length());
     }
 
