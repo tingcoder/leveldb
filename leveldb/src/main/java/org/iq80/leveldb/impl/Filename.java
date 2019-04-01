@@ -142,14 +142,14 @@ public final class Filename {
         //将零时文件重命名为"CURRENT"
         File to = new File(databaseDir, currentFileName());
         boolean switchSuccess = tempFile.renameTo(to);
-        log.info("覆盖{}文件内容为:{} , 零时文件{}重命名为{}，结果:{}", to.getName(), manifest, tempFile.getName(), to.getName(), switchSuccess);
+        log.info("使用内容{}覆盖文件{} , 零时文件{}重命名为{}，结果:{}", manifest, tempFile.getName(), tempFile.getName(), to.getName(), switchSuccess);
         if (!switchSuccess) {
             //切换失败，补偿操作
             //删除零时文件
             tempFile.delete();
             //将"MANIFEST-${descNumber}"写入"CURRENT"文件
             writeStringToFileSync(manifest + "\n", to);
-            log.info("直接写入文件{}内容为:{}", to.getName(), manifest);
+            log.info("直接将内容{}写入文件{}", manifest, to.getName());
         }
         return switchSuccess;
     }

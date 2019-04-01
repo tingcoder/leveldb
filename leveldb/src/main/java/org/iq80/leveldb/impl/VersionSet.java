@@ -26,7 +26,7 @@ import static org.iq80.leveldb.impl.DbConstants.NUM_LEVELS;
 import static org.iq80.leveldb.impl.LogMonitors.throwExceptionMonitor;
 
 /**
- * @author
+ * @author yf
  */
 @Slf4j
 public class VersionSet implements SeekingIterable<InternalKey, Slice> {
@@ -39,12 +39,19 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
     public static final long MAX_GRAND_PARENT_OVERLAP_BYTES = 10 * TARGET_FILE_SIZE;
 
     private final AtomicLong nextFileNumber = new AtomicLong(2);
+
+    /**
+     * MANIFEST文件编号
+     */
     private long manifestFileNumber = 1;
 
     /**
      * 当前的版本
      */
     private Version current;
+    /**
+     * 最新sequence
+     */
     private long lastSequence;
     /**
      * 日志序列号
@@ -121,10 +128,10 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
             descriptorLog = null;
         }
 
-        Version t = current;
-        if (t != null) {
+        Version version = current;
+        if (version != null) {
             current = null;
-            t.release();
+            version.release();
         }
     }
 
@@ -134,9 +141,15 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
     private void appendVersion(Version version) {
         requireNonNull(version, "version is null");
         checkArgument(version != current, "version is the current version");
+
+        //将current切换到目标Version
         Version previous = current;
         current = version;
+
+        //将此version加入活动version
         activeVersions.put(version, new Object());
+
+        //释放旧版本
         if (previous != null) {
             previous.release();
         }
@@ -302,7 +315,7 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
     }
 
     public void recover() throws IOException {
-        log.info("VersionSet的recover方法开始执行.....");
+        log.info("VersionSet的recover方法  -------- 开始.....");
         // Read "CURRENT" file, which contains a pointer to the current manifest file
         File currentFile = new File(databaseDir, Filename.currentFileName());
         checkState(currentFile.exists(), "CURRENT file does not exist");
@@ -371,12 +384,14 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
 
             //切换版本
             appendVersion(newVersion);
+
             manifestFileNumber = nextFileNumber;
             this.nextFileNumber.set(nextFileNumber + 1);
             this.lastSequence = lastSequence;
             this.logNumber = logNumber;
             this.prevLogNumber = prevLogNumber;
         }
+        log.info("VersionSet的recover方法  -------- 完成.....");
     }
 
     private void finalizeVersion(Version version) {
