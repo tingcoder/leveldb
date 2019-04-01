@@ -2,6 +2,7 @@ package org.iq80.leveldb.impl;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
+import lombok.extern.slf4j.Slf4j;
 import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.util.InternalIterator;
 
@@ -15,6 +16,7 @@ import static org.iq80.leveldb.util.SizeOf.SIZE_OF_LONG;
 /**
  * @author
  */
+@Slf4j
 public class MemTable implements SeekingIterable<InternalKey, Slice> {
     private final ConcurrentSkipListMap<InternalKey, Slice> table;
     private final AtomicLong approximateMemoryUsage = new AtomicLong();
@@ -39,6 +41,7 @@ public class MemTable implements SeekingIterable<InternalKey, Slice> {
         InternalKey internalKey = new InternalKey(key, sequenceNumber, valueType);
         table.put(internalKey, value);
 
+        //缓冲区大小记录
         approximateMemoryUsage.addAndGet(key.length() + SIZE_OF_LONG + value.length());
     }
 
@@ -48,14 +51,16 @@ public class MemTable implements SeekingIterable<InternalKey, Slice> {
         InternalKey internalKey = key.getInternalKey();
         Entry<InternalKey, Slice> entry = table.ceilingEntry(internalKey);
         if (entry == null) {
+            log.info("memTable 查找{} 返回null", key.toString());
             return null;
         }
-
         InternalKey entryKey = entry.getKey();
         if (entryKey.getUserKey().equals(key.getUserKey())) {
             if (entryKey.getValueType() == ValueType.DELETION) {
+                log.info("memTable 查找{} 返回Deleted", key.toString());
                 return LookupResult.deleted(key);
             } else {
+                log.info("memTable 查找{} 返回OK", key.toString());
                 return LookupResult.ok(key, entry.getValue());
             }
         }

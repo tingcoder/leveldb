@@ -2,6 +2,7 @@ package org.iq80.leveldb.impl;
 
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.iq80.leveldb.*;
 import org.iq80.leveldb.impl.Filename.FileInfo;
 import org.iq80.leveldb.impl.Filename.FileType;
@@ -44,15 +45,29 @@ import static org.iq80.leveldb.util.SizeOf.SIZE_OF_INT;
 import static org.iq80.leveldb.util.SizeOf.SIZE_OF_LONG;
 
 /**
+ * 这里通过成员变量可以得到整个DB的逻辑结构：
+ * >>> 1. 两个内存表：memTable和immutableMemTable
+ * >>> 2. 物理存储：VersionSet
+ * >>> 3. 日志writer: LogWriter
+ * DB提供两个核心能力:
+ * 1. 写入K-V数据
+ * >>> a. 将K-V操作写入日志文件
+ * >>> b. 更新memTable
+ * 2. 通过K查找V
+ * >>> a. 优先查找memTable，查到直接返回
+ * >>> b. 在immutableMemTable中查找，找到就返回，注意immutableMemTable可能为null,此时直接进入下一步
+ * >>> c. 通过VersionSet查找K对应的V
+ *
  * @author
  */
+@Slf4j
 @SuppressWarnings("AccessingNonPublicFieldOfAnotherObject")
 public class DbImpl implements DB {
     private final Options options;
     private final File databaseDir;
     private final TableCache tableCache;
     private final DbLock dbLock;
-    private final VersionSet versions;
+    private final VersionSet versionSet;
 
     private final AtomicBoolean shuttingDown = new AtomicBoolean();
     private final ReentrantLock mutex = new ReentrantLock();
@@ -63,7 +78,7 @@ public class DbImpl implements DB {
     /**
      * 写操作将通过LogWriter写入日志中，防止应用重启等导致的数据丢失
      */
-    private LogWriter log;
+    private LogWriter logWriter;
 
     private MemTable memTable;
     private MemTable immutableMemTable;
@@ -77,20 +92,19 @@ public class DbImpl implements DB {
     private ManualCompaction manualCompaction;
 
     public DbImpl(Options options, File databaseDir) throws IOException {
+        //入参校验
         requireNonNull(options, "options is null");
         requireNonNull(databaseDir, "databaseDir is null");
 
-        //修理options
+        //修复db选项
         this.options = options;
         if (this.options.compressionType() == CompressionType.SNAPPY && !Snappy.available()) {
-            // Disable snappy if it's not available.
             this.options.compressionType(CompressionType.NONE);
         }
 
-        //实例路径
         this.databaseDir = databaseDir;
 
-        //使用自定义排序规则
+        //初始化key比较器
         DBComparator comparator = options.comparator();
         UserComparator userComparator;
         if (comparator != null) {
@@ -99,34 +113,27 @@ public class DbImpl implements DB {
             userComparator = new BytewiseComparator();
         }
         internalKeyComparator = new InternalKeyComparator(userComparator);
-
-        //实例化内存库
         memTable = new MemTable(internalKeyComparator);
         immutableMemTable = null;
 
-        //构建单线程的线程池，用于后台做日志的compaction操作
-        ThreadFactory compactionThreadFactory = compactionThreadFactory();
-        int poolSize = 1;
-        long keepAlive = 0;
-        BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
-        compactionExecutor = new ThreadPoolExecutor(poolSize, poolSize, keepAlive, TimeUnit.MILLISECONDS, queue, compactionThreadFactory);
+        // compaction操作固定线程池
+        compactionExecutor = Executors.newSingleThreadExecutor(compactionThreadFactory());
 
         // Reserve ten files or so for other uses and give the rest to TableCache.
         int tableCacheSize = options.maxOpenFiles() - 10;
-        //实例化表缓存
         tableCache = new TableCache(databaseDir, tableCacheSize, new InternalUserComparator(internalKeyComparator), options.verifyChecksums());
 
-        //初始化工作目录，若不存在，则自动创建
+        // 目录不存在则创建
         databaseDir.mkdirs();
         checkArgument(databaseDir.exists(), "Database directory '%s' does not exist and could not be created", databaseDir);
         checkArgument(databaseDir.isDirectory(), "Database directory '%s' is not a directory", databaseDir);
 
         mutex.lock();
         try {
-            // 通过"LOCK"文件，锁定目录
+            // lock the database dir
             dbLock = new DbLock(new File(databaseDir, Filename.lockFileName()));
 
-            // 检查"CURRENT"文件是否可读
+            // 校验文件 "current"
             File currentFile = new File(databaseDir, Filename.currentFileName());
             if (!currentFile.canRead()) {
                 checkArgument(options.createIfMissing(), "Database '%s' does not exist and the create if missing option is disabled", databaseDir);
@@ -134,56 +141,54 @@ public class DbImpl implements DB {
                 checkArgument(!options.errorIfExists(), "Database '%s' exists and the error if exists option is enabled", databaseDir);
             }
 
-            //恢复Version数据
-            versions = new VersionSet(databaseDir, tableCache, internalKeyComparator);
-            // load  (and recover) current version
-            versions.recover();
+            versionSet = new VersionSet(databaseDir, tableCache, internalKeyComparator);
 
-            // Recover from all newer log files than the ones named in the
-            // descriptor (new log files may have been added by the previous
+            // load  (and recover) current version
+            versionSet.recover();
+
+            // Recover from all newer logWriter files than the ones named in the
+            // descriptor (new logWriter files may have been added by the previous
             // incarnation without registering them in the descriptor).
             //
             // Note that PrevLogNumber() is no longer used, but we pay
             // attention to it in case we are recovering a database
             // produced by an older version of leveldb.
-            long minLogNumber = versions.getLogNumber();
-            long previousLogNumber = versions.getPrevLogNumber();
+            long minLogNumber = versionSet.getLogNumber();
+            long previousLogNumber = versionSet.getPrevLogNumber();
             List<File> filenames = Filename.listFiles(databaseDir);
 
-            //遍历目录下的Log后缀文件
-            List<Long> logNums = new ArrayList<>();
+            List<Long> logFileNumbers = new ArrayList<>();
             for (File filename : filenames) {
                 FileInfo fileInfo = Filename.parseFileName(filename);
-                if (fileInfo != null || fileInfo.getFileType() != FileType.LOG) {
-                    continue;
-                }
-                if (fileInfo.getFileNumber() >= minLogNumber || fileInfo.getFileNumber() == previousLogNumber) {
-                    logNums.add(fileInfo.getFileNumber());
+                if (fileInfo != null && fileInfo.getFileType() == FileType.LOG && ((fileInfo.getFileNumber() >= minLogNumber) || (fileInfo.getFileNumber() == previousLogNumber))) {
+                    logFileNumbers.add(fileInfo.getFileNumber());
                 }
             }
 
             // Recover in the order in which the logs were generated
             VersionEdit edit = new VersionEdit();
-            Collections.sort(logNums);
-            for (Long fileNumber : logNums) {
+            Collections.sort(logFileNumbers);
+            for (Long fileNumber : logFileNumbers) {
+                //基于logFile做恢复
                 long maxSequence = recoverLogFile(fileNumber, edit);
-                if (versions.getLastSequence() < maxSequence) {
-                    versions.setLastSequence(maxSequence);
+                if (versionSet.getLastSequence() < maxSequence) {
+                    versionSet.setLastSequence(maxSequence);
                 }
             }
 
-            //打开日志
-            long logFileNumber = versions.getNextFileNumber();
-            this.log = Logs.createLogWriter(new File(databaseDir, Filename.logFileName(logFileNumber)), logFileNumber);
-            edit.setLogNumber(log.getFileNumber());
-
+            // open transaction logWriter
+            long logFileNumber = versionSet.getNextFileNumber();
+            File txLogFile = new File(databaseDir, Filename.logFileName(logFileNumber));
+            this.logWriter = Logs.createLogWriter(txLogFile, logFileNumber);
+            edit.setLogNumber(logWriter.getFileNumber());
+            log.info("将事务日志文件从切换至:{}", txLogFile.getName());
             // apply recovered edits
-            versions.logAndApply(edit);
+            versionSet.logAndApply(edit);
 
             // cleanup unused files
             deleteObsoleteFiles();
 
-            //开启后台合并sst文件合并任务
+            // schedule compactions
             maybeScheduleCompaction();
         } finally {
             mutex.unlock();
@@ -204,6 +209,7 @@ public class DbImpl implements DB {
 
     @Override
     public void close() {
+        log.info("DB执行close方法，准备退出.....");
         if (shuttingDown.getAndSet(true)) {
             return;
         }
@@ -224,11 +230,12 @@ public class DbImpl implements DB {
             Thread.currentThread().interrupt();
         }
         try {
-            versions.destroy();
+            log.info("VersionSet执行destroy方法");
+            versionSet.destroy();
         } catch (IOException ignored) {
         }
         try {
-            log.close();
+            logWriter.close();
         } catch (IOException ignored) {
         }
         tableCache.close();
@@ -241,12 +248,20 @@ public class DbImpl implements DB {
         return null;
     }
 
+    /**
+     * 清理非活跃文件,这里通过文件版本号进行判断,范围涉及四种的文件
+     * >>>> log后缀
+     * >>>> MANIFEST
+     * >>>> sst后缀
+     * >>>> tmp后缀
+     */
     private void deleteObsoleteFiles() {
+        log.info("执行deleteObsoleteFiles()方法.....");
         checkState(mutex.isHeldByCurrentThread());
 
         // Make a set of all of the live files
         List<Long> live = new ArrayList<>(this.pendingOutputs);
-        for (FileMetaData fileMetaData : versions.getLiveFiles()) {
+        for (FileMetaData fileMetaData : versionSet.getLiveFiles()) {
             live.add(fileMetaData.getNumber());
         }
 
@@ -259,13 +274,12 @@ public class DbImpl implements DB {
             boolean keep = true;
             switch (fileInfo.getFileType()) {
                 case LOG:
-                    keep = ((number >= versions.getLogNumber()) ||
-                            (number == versions.getPrevLogNumber()));
+                    keep = ((number >= versionSet.getLogNumber()) || (number == versionSet.getPrevLogNumber()));
                     break;
                 case DESCRIPTOR:
                     // Keep my manifest file, and any newer incarnations'
                     // (in case there is a race that allows other incarnations)
-                    keep = (number >= versions.getManifestFileNumber());
+                    keep = (number >= versionSet.getManifestFileNumber());
                     break;
                 case TABLE:
                     keep = live.contains(number);
@@ -284,12 +298,10 @@ public class DbImpl implements DB {
 
             if (!keep) {
                 if (fileInfo.getFileType() == FileType.TABLE) {
+                    log.info("缓存中淘汰文件编号:{}", number);
                     tableCache.evict(number);
                 }
-                // todo info logging system needed
-//                Log(options_.info_log, "Delete type=%d #%lld\n",
-//                int(type),
-//                        static_cast < unsigned long long>(number));
+                log.info("删除文件:{}", file.getName());
                 file.delete();
             }
         }
@@ -301,7 +313,6 @@ public class DbImpl implements DB {
             // force compaction
             makeRoomForWrite(true);
 
-            // todo bg_error code
             while (immutableMemTable != null) {
                 backgroundCondition.awaitUninterruptibly();
             }
@@ -336,20 +347,18 @@ public class DbImpl implements DB {
 
     private void maybeScheduleCompaction() {
         checkState(mutex.isHeldByCurrentThread());
-
+        log.info("DB实例的maybeScheduleCompaction()方法执行");
         if (backgroundCompaction != null) {
-            // Already scheduled
+            log.info("后台合并正在进行中，本次compaction直接退出");
         } else if (shuttingDown.get()) {
-            // DB is being shutdown; no more background compactions
-        } else if (immutableMemTable == null &&
-                manualCompaction == null &&
-                !versions.needsCompaction()) {
-            // No work to be done
+            log.info("DB正在关闭中，放弃本次compaction");
+        } else if (immutableMemTable == null && manualCompaction == null && !versionSet.needsCompaction()) {
+            log.info("immutableMemTable==null且versionSet反馈不需要compaction，放弃本次合并");
         } else {
+            log.info("启动异步compaction任务...");
             backgroundCompaction = compactionExecutor.submit(new Callable<Void>() {
                 @Override
-                public Void call()
-                        throws Exception {
+                public Void call() throws Exception {
                     try {
                         backgroundCall();
                     } catch (DatabaseShutdownException ignored) {
@@ -370,14 +379,17 @@ public class DbImpl implements DB {
     }
 
     private void backgroundCall() throws IOException {
+        log.info("后台线程启动compaction 开始....");
         mutex.lock();
         try {
             if (backgroundCompaction == null) {
+                log.info("backgroundCompaction == null直接退出");
                 return;
             }
 
             try {
                 if (!shuttingDown.get()) {
+                    log.info("系统没有进入“关闭中”，可以执行后台compaction");
                     backgroundCompaction();
                 }
             } finally {
@@ -405,11 +417,11 @@ public class DbImpl implements DB {
 
         Compaction compaction;
         if (manualCompaction != null) {
-            compaction = versions.compactRange(manualCompaction.level,
+            compaction = versionSet.compactRange(manualCompaction.level,
                     new InternalKey(manualCompaction.begin, MAX_SEQUENCE_NUMBER, VALUE),
                     new InternalKey(manualCompaction.end, 0, DELETION));
         } else {
-            compaction = versions.pickCompaction();
+            compaction = versionSet.pickCompaction();
         }
 
         if (compaction == null) {
@@ -420,8 +432,8 @@ public class DbImpl implements DB {
             FileMetaData fileMetaData = compaction.getLevelInputs().get(0);
             compaction.getEdit().deleteFile(compaction.getLevel(), fileMetaData.getNumber());
             compaction.getEdit().addFile(compaction.getLevel() + 1, fileMetaData);
-            versions.logAndApply(compaction.getEdit());
-            // log
+            versionSet.logAndApply(compaction.getEdit());
+            // logWriter
         } else {
             CompactionState compactionState = new CompactionState(compaction);
             doCompactionWork(compactionState);
@@ -447,15 +459,24 @@ public class DbImpl implements DB {
         }
     }
 
+    /**
+     * 根据指定编号的日志文件做数据恢复
+     *
+     * @param fileNumber 日志文件编号
+     * @param edit
+     * @return
+     * @throws IOException
+     */
     private long recoverLogFile(long fileNumber, VersionEdit edit) throws IOException {
         checkState(mutex.isHeldByCurrentThread());
+
         File file = new File(databaseDir, Filename.logFileName(fileNumber));
+        log.info("基于日志文件{}做数据恢复....", file.getName());
+
         try (FileInputStream fis = new FileInputStream(file);
              FileChannel channel = fis.getChannel()) {
             LogMonitor logMonitor = LogMonitors.logMonitor();
             LogReader logReader = new LogReader(channel, logMonitor, true, 0);
-
-            // Log(options_.info_log, "Recovering log #%llu", (unsigned long long) log_number);
 
             // Read all the records and add to a memtable
             long maxSequence = 0;
@@ -464,7 +485,7 @@ public class DbImpl implements DB {
                 SliceInput sliceInput = record.input();
                 // read header
                 if (sliceInput.available() < 12) {
-                    logMonitor.corruption(sliceInput.available(), "log record too small");
+                    logMonitor.corruption(sliceInput.available(), "logWriter record too small");
                     continue;
                 }
                 long sequenceBegin = sliceInput.readLong();
@@ -523,6 +544,7 @@ public class DbImpl implements DB {
 
             // step 2 : 从 immutableMemTable 中查找
             if (immutableMemTable != null) {
+                log.info("进入immutableMemTable查找");
                 lookupResult = immutableMemTable.get(lookupKey);
                 if (lookupResult != null) {
                     return getRresult(lookupResult);
@@ -533,12 +555,12 @@ public class DbImpl implements DB {
         }
 
         // step 3 : 从SST文件中查找
-        LookupResult lookupResult = versions.get(lookupKey);
+        LookupResult lookupResult = versionSet.get(lookupKey);
 
         // 检查看是否需要做后台merge操作
         mutex.lock();
         try {
-            if (versions.needsCompaction()) {
+            if (versionSet.needsCompaction()) {
                 maybeScheduleCompaction();
             }
         } finally {
@@ -600,15 +622,15 @@ public class DbImpl implements DB {
                 makeRoomForWrite(false);
 
                 //step 2 : 计算新的sequence
-                long sequenceBegin = versions.getLastSequence() + 1;
+                long sequenceBegin = versionSet.getLastSequence() + 1;
                 sequenceEnd = sequenceBegin + updates.size() - 1;
                 // Reserve this sequence in the version set
-                versions.setLastSequence(sequenceEnd);
+                versionSet.setLastSequence(sequenceEnd);
 
                 //step 3 : 写入Log文件
                 Slice record = writeWriteBatch(updates, sequenceBegin);
                 try {
-                    log.addRecord(record, options.sync());
+                    logWriter.addRecord(record, options.sync());
                 } catch (IOException e) {
                     throw Throwables.propagate(e);
                 }
@@ -616,11 +638,11 @@ public class DbImpl implements DB {
                 //step 4 : 更新 memtable
                 updates.forEach(new InsertIntoHandler(memTable, sequenceBegin));
             } else {
-                sequenceEnd = versions.getLastSequence();
+                sequenceEnd = versionSet.getLastSequence();
             }
 
             if (options.snapshot()) {
-                return new SnapshotImpl(versions.getCurrent(), sequenceEnd);
+                return new SnapshotImpl(versionSet.getCurrent(), sequenceEnd);
             } else {
                 return null;
             }
@@ -673,7 +695,7 @@ public class DbImpl implements DB {
             if (immutableMemTable != null) {
                 iterator = immutableMemTable.iterator();
             }
-            Version current = versions.getCurrent();
+            Version current = versionSet.getCurrent();
             return new DbIterator(memTable.iterator(), iterator, current.getLevel0Files(), current.getLevelIterators(), internalKeyComparator);
         } finally {
             mutex.unlock();
@@ -685,7 +707,7 @@ public class DbImpl implements DB {
         checkBackgroundException();
         mutex.lock();
         try {
-            return new SnapshotImpl(versions.getCurrent(), versions.getLastSequence());
+            return new SnapshotImpl(versionSet.getCurrent(), versionSet.getLastSequence());
         } finally {
             mutex.unlock();
         }
@@ -696,7 +718,7 @@ public class DbImpl implements DB {
         if (options.snapshot() != null) {
             snapshot = (SnapshotImpl) options.snapshot();
         } else {
-            snapshot = new SnapshotImpl(versions.getCurrent(), versions.getLastSequence());
+            snapshot = new SnapshotImpl(versionSet.getCurrent(), versionSet.getLastSequence());
             snapshot.close(); // To avoid holding the snapshot active..
         }
         return snapshot;
@@ -708,13 +730,8 @@ public class DbImpl implements DB {
         boolean allowDelay = !force;
 
         while (true) {
-            // todo background processing system need work
-//            if (!bg_error_.ok()) {
-//              // Yield previous error
-//              s = bg_error_;
-//              break;
-//            } else
-            if (allowDelay && versions.numberOfFilesInLevel(0) > L0_SLOWDOWN_WRITES_TRIGGER) {
+
+            if (allowDelay && versionSet.numberOfFilesInLevel(0) > L0_SLOWDOWN_WRITES_TRIGGER) {
                 // We are getting close to hitting a hard limit on the number of
                 // L0 files.  Rather than delaying a single write by several
                 // seconds when we hit the hard limit, start delaying each
@@ -734,37 +751,40 @@ public class DbImpl implements DB {
                 // Do not delay a single write more than once
                 allowDelay = false;
             } else if (!force && memTable.approximateMemoryUsage() <= options.writeBufferSize()) {
-                // There is room in current memtable
+                //当前memTable容量还有空间，不需要开辟新memTable, 直接退出
                 break;
             } else if (immutableMemTable != null) {
-                // We have filled up the current memtable, but the previous
+                // We have filled up the current memTable, but the previous
                 // one is still being compacted, so we wait.
                 backgroundCondition.awaitUninterruptibly();
-            } else if (versions.numberOfFilesInLevel(0) >= L0_STOP_WRITES_TRIGGER) {
+            } else if (versionSet.numberOfFilesInLevel(0) >= L0_STOP_WRITES_TRIGGER) {
                 // There are too many level-0 files.
 //                Log(options_.info_log, "waiting...\n");
                 backgroundCondition.awaitUninterruptibly();
             } else {
                 // Attempt to switch to a new memtable and trigger compaction of old
-                checkState(versions.getPrevLogNumber() == 0);
+                checkState(versionSet.getPrevLogNumber() == 0);
 
-                // close the existing log
+                // close the existing logWriter
                 try {
-                    log.close();
+                    log.info("关闭当前日志文件:{}", logWriter.getFile().getName());
+                    logWriter.close();
                 } catch (IOException e) {
-                    throw new RuntimeException("Unable to close log file " + log.getFile(), e);
+                    throw new RuntimeException("Unable to close logWriter file " + logWriter.getFile(), e);
                 }
 
-                // open a new log
-                long logNumber = versions.getNextFileNumber();
+                // open a new logWriter
+                long logNumber = versionSet.getNextFileNumber();
                 try {
-                    this.log = Logs.createLogWriter(new File(databaseDir, Filename.logFileName(logNumber)), logNumber);
+                    File targetFile = new File(databaseDir, Filename.logFileName(logNumber));
+                    log.info("创建新日志文件:{}", targetFile.getName());
+                    this.logWriter = Logs.createLogWriter(targetFile, logNumber);
                 } catch (IOException e) {
-                    String errMsg = "Unable to open new log file " + new File(databaseDir, Filename.logFileName(logNumber)).getAbsoluteFile();
+                    String errMsg = "Unable to open new logWriter file " + new File(databaseDir, Filename.logFileName(logNumber)).getAbsoluteFile();
                     throw new RuntimeException(errMsg, e);
                 }
 
-                // create a new mem table
+                //将immutableMemTable指向memTable进入不可写状态，并开辟一个新的memTable
                 immutableMemTable = memTable;
                 memTable = new MemTable(internalKeyComparator);
 
@@ -786,15 +806,19 @@ public class DbImpl implements DB {
     }
 
     private void compactMemTableInternal() throws IOException {
+        log.info("compactMemTableInternal()方法执行....");
         checkState(mutex.isHeldByCurrentThread());
         if (immutableMemTable == null) {
+            log.info("immutableMemTable == null 直接退出....");
             return;
         }
 
         try {
-            // Save the contents of the memtable as a new Table
+            // Save the contents of the memTable as a new Table
             VersionEdit edit = new VersionEdit();
-            Version base = versions.getCurrent();
+            Version base = versionSet.getCurrent();
+
+            //将immutableMemTable数据写入level0中
             writeLevel0Table(immutableMemTable, edit, base);
 
             if (shuttingDown.get()) {
@@ -803,11 +827,13 @@ public class DbImpl implements DB {
 
             // Replace immutable memtable with the generated Table
             edit.setPreviousLogNumber(0L);
-            edit.setLogNumber(log.getFileNumber());  // Earlier logs no longer needed
-            versions.logAndApply(edit);
+            edit.setLogNumber(logWriter.getFileNumber());  // Earlier logs no longer needed
+            versionSet.logAndApply(edit);
 
+            //释放immutableMemTable引用
             immutableMemTable = null;
 
+            //清理无用文件
             deleteObsoleteFiles();
         } finally {
             backgroundCondition.signalAll();
@@ -819,11 +845,12 @@ public class DbImpl implements DB {
 
         // skip empty mem table
         if (mem.isEmpty()) {
+            log.info("将memTable数据dump到Level0文件, 由于memTable为空，直接退出");
             return;
         }
 
         // write the memtable to a new sstable
-        long fileNumber = versions.getNextFileNumber();
+        long fileNumber = versionSet.getNextFileNumber();
         pendingOutputs.add(fileNumber);
         mutex.unlock();
         FileMetaData meta;
@@ -847,6 +874,14 @@ public class DbImpl implements DB {
         }
     }
 
+    /**
+     * 根据键值对，构建sst的文件表格
+     *
+     * @param data       数据集合
+     * @param fileNumber sst文件编号
+     * @return sst表格文件的元数据
+     * @throws IOException
+     */
     private FileMetaData buildTable(SeekingIterable<InternalKey, Slice> data, long fileNumber) throws IOException {
         File file = new File(databaseDir, Filename.tableFileName(fileNumber));
         try {
@@ -893,17 +928,17 @@ public class DbImpl implements DB {
 
     private void doCompactionWork(CompactionState compactionState) throws IOException {
         checkState(mutex.isHeldByCurrentThread());
-        checkArgument(versions.numberOfBytesInLevel(compactionState.getCompaction().getLevel()) > 0);
+        checkArgument(versionSet.numberOfBytesInLevel(compactionState.getCompaction().getLevel()) > 0);
         checkArgument(compactionState.builder == null);
         checkArgument(compactionState.outfile == null);
 
         // todo track snapshots
-        compactionState.smallestSnapshot = versions.getLastSequence();
+        compactionState.smallestSnapshot = versionSet.getLastSequence();
 
         // Release mutex while we're actually doing the compaction work
         mutex.unlock();
         try {
-            MergingIterator iterator = versions.makeInputIterator(compactionState.compaction);
+            MergingIterator iterator = versionSet.makeInputIterator(compactionState.compaction);
 
             Slice currentUserKey = null;
             boolean hasCurrentUserKey = false;
@@ -998,7 +1033,7 @@ public class DbImpl implements DB {
 
         mutex.lock();
         try {
-            long fileNumber = versions.getNextFileNumber();
+            long fileNumber = versionSet.getNextFileNumber();
             pendingOutputs.add(fileNumber);
             compactionState.currentFileNumber = fileNumber;
             compactionState.currentFileSize = 0;
@@ -1058,7 +1093,7 @@ public class DbImpl implements DB {
         }
 
         try {
-            versions.logAndApply(compact.compaction.getEdit());
+            versionSet.logAndApply(compact.compaction.getEdit());
             deleteObsoleteFiles();
         } catch (IOException e) {
             // Compaction failed for some reason.  Simply discard the work and try again later.
@@ -1072,7 +1107,7 @@ public class DbImpl implements DB {
     }
 
     int numberOfFilesInLevel(int level) {
-        return versions.getCurrent().numberOfFilesInLevel(level);
+        return versionSet.getCurrent().numberOfFilesInLevel(level);
     }
 
     @Override
@@ -1087,7 +1122,7 @@ public class DbImpl implements DB {
     }
 
     public long getApproximateSizes(Range range) {
-        Version v = versions.getCurrent();
+        Version v = versionSet.getCurrent();
 
         InternalKey startKey = new InternalKey(Slices.wrappedBuffer(range.start()), MAX_SEQUENCE_NUMBER, VALUE);
         InternalKey limitKey = new InternalKey(Slices.wrappedBuffer(range.limit()), MAX_SEQUENCE_NUMBER, VALUE);
@@ -1098,7 +1133,7 @@ public class DbImpl implements DB {
     }
 
     public long getMaxNextLevelOverlappingBytes() {
-        return versions.getMaxNextLevelOverlappingBytes();
+        return versionSet.getMaxNextLevelOverlappingBytes();
     }
 
     private static class CompactionState {
@@ -1159,7 +1194,7 @@ public class DbImpl implements DB {
             }
         }
         if (entries != updateSize) {
-            throw new IOException(String.format("Expected %d entries in log record but found %s entries", updateSize, entries));
+            throw new IOException(String.format("Expected %d entries in logWriter record but found %s entries", updateSize, entries));
         }
         return writeBatch;
     }

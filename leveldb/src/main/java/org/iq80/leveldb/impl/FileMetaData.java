@@ -9,8 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author xxx
  */
 @ToString
-public class FileMetaData
-{
+public class FileMetaData {
     /**
      * 文件编号
      */
@@ -40,26 +39,22 @@ public class FileMetaData
      */
     private final AtomicInteger allowedSeeks = new AtomicInteger(1 << 30);
 
-    public FileMetaData(long number, long fileSize, InternalKey smallest, InternalKey largest)
-    {
+    public FileMetaData(long number, long fileSize, InternalKey smallest, InternalKey largest) {
         this.number = number;
         this.fileSize = fileSize;
         this.smallest = smallest;
         this.largest = largest;
     }
 
-    public int getAllowedSeeks()
-    {
+    public int getAllowedSeeks() {
         return allowedSeeks.get();
     }
 
-    public void setAllowedSeeks(int allowedSeeks)
-    {
+    public void setAllowedSeeks(int allowedSeeks) {
         this.allowedSeeks.set(allowedSeeks);
     }
 
-    public void decrementAllowedSeeks()
-    {
+    public void decrementAllowedSeeks() {
         allowedSeeks.getAndDecrement();
     }
 }

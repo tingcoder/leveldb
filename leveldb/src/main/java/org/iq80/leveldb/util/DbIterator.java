@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2011 the original author or authors.
- * See the notice.md file distributed with this work for additional
- * information regarding copyright ownership.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.iq80.leveldb.util;
 
 import org.iq80.leveldb.impl.InternalKey;
@@ -30,10 +13,7 @@ import java.util.NoSuchElementException;
 
 import static java.util.Objects.requireNonNull;
 
-public final class DbIterator
-        extends AbstractSeekingIterator<InternalKey, Slice>
-        implements InternalIterator
-{
+public final class DbIterator extends AbstractSeekingIterator<InternalKey, Slice> implements InternalIterator {
     /*
      * NOTE: This code has been specifically tuned for performance of the DB
      * iterator methods.  Before committing changes to this code, make sure
@@ -61,11 +41,10 @@ public final class DbIterator
     private int heapSize;
 
     public DbIterator(MemTableIterator memTableIterator,
-            MemTableIterator immutableMemTableIterator,
-            List<InternalTableIterator> level0Files,
-            List<LevelIterator> levels,
-            Comparator<InternalKey> comparator)
-    {
+                      MemTableIterator immutableMemTableIterator,
+                      List<InternalTableIterator> level0Files,
+                      List<LevelIterator> levels,
+                      Comparator<InternalKey> comparator) {
         this.memTableIterator = memTableIterator;
         this.immutableMemTableIterator = immutableMemTableIterator;
         this.level0Files = level0Files;
@@ -77,8 +56,7 @@ public final class DbIterator
     }
 
     @Override
-    protected void seekToFirstInternal()
-    {
+    protected void seekToFirstInternal() {
         if (memTableIterator != null) {
             memTableIterator.seekToFirst();
         }
@@ -95,8 +73,7 @@ public final class DbIterator
     }
 
     @Override
-    protected void seekInternal(InternalKey targetKey)
-    {
+    protected void seekInternal(InternalKey targetKey) {
         if (memTableIterator != null) {
             memTableIterator.seek(targetKey);
         }
@@ -113,8 +90,7 @@ public final class DbIterator
     }
 
     @Override
-    protected Entry<InternalKey, Slice> getNextElement()
-    {
+    protected Entry<InternalKey, Slice> getNextElement() {
         if (heapSize == 0) {
             return null;
         }
@@ -127,8 +103,7 @@ public final class DbIterator
         ComparableIterator replacementElement;
         if (smallest.hasNext()) {
             replacementElement = smallest;
-        }
-        else {
+        } else {
             heapSize--;
             replacementElement = heap[heapSize];
             heap[heapSize] = null;
@@ -142,8 +117,7 @@ public final class DbIterator
         return result;
     }
 
-    private void resetPriorityQueue()
-    {
+    private void resetPriorityQueue() {
         int i = 0;
         heapSize = 0;
         if (memTableIterator != null && memTableIterator.hasNext()) {
@@ -164,8 +138,7 @@ public final class DbIterator
         }
     }
 
-    private boolean heapAdd(ComparableIterator newElement)
-    {
+    private boolean heapAdd(ComparableIterator newElement) {
         requireNonNull(newElement, "newElement is null");
 
         heap[heapSize] = newElement;
@@ -173,8 +146,7 @@ public final class DbIterator
         return true;
     }
 
-    private void heapSiftUp(int childIndex)
-    {
+    private void heapSiftUp(int childIndex) {
         ComparableIterator target = heap[childIndex];
         int parentIndex;
         while (childIndex > 0) {
@@ -189,8 +161,7 @@ public final class DbIterator
         heap[childIndex] = target;
     }
 
-    private void heapSiftDown(int rootIndex)
-    {
+    private void heapSiftDown(int rootIndex) {
         ComparableIterator target = heap[rootIndex];
         int childIndex;
         while ((childIndex = rootIndex * 2 + 1) < heapSize) {
@@ -208,8 +179,7 @@ public final class DbIterator
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("DbIterator");
         sb.append("{memTableIterator=").append(memTableIterator);
@@ -222,15 +192,13 @@ public final class DbIterator
     }
 
     private static class ComparableIterator
-            implements Iterator<Entry<InternalKey, Slice>>, Comparable<ComparableIterator>
-    {
+            implements Iterator<Entry<InternalKey, Slice>>, Comparable<ComparableIterator> {
         private final SeekingIterator<InternalKey, Slice> iterator;
         private final Comparator<InternalKey> comparator;
         private final int ordinal;
         private Entry<InternalKey, Slice> nextElement;
 
-        private ComparableIterator(SeekingIterator<InternalKey, Slice> iterator, Comparator<InternalKey> comparator, int ordinal, Entry<InternalKey, Slice> nextElement)
-        {
+        private ComparableIterator(SeekingIterator<InternalKey, Slice> iterator, Comparator<InternalKey> comparator, int ordinal, Entry<InternalKey, Slice> nextElement) {
             this.iterator = iterator;
             this.comparator = comparator;
             this.ordinal = ordinal;
@@ -238,14 +206,12 @@ public final class DbIterator
         }
 
         @Override
-        public boolean hasNext()
-        {
+        public boolean hasNext() {
             return nextElement != null;
         }
 
         @Override
-        public Entry<InternalKey, Slice> next()
-        {
+        public Entry<InternalKey, Slice> next() {
             if (nextElement == null) {
                 throw new NoSuchElementException();
             }
@@ -253,22 +219,19 @@ public final class DbIterator
             Entry<InternalKey, Slice> result = nextElement;
             if (iterator.hasNext()) {
                 nextElement = iterator.next();
-            }
-            else {
+            } else {
                 nextElement = null;
             }
             return result;
         }
 
         @Override
-        public void remove()
-        {
+        public void remove() {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public boolean equals(Object o)
-        {
+        public boolean equals(Object o) {
             if (this == o) {
                 return true;
             }
@@ -289,16 +252,14 @@ public final class DbIterator
         }
 
         @Override
-        public int hashCode()
-        {
+        public int hashCode() {
             int result = ordinal;
             result = 31 * result + (nextElement != null ? nextElement.hashCode() : 0);
             return result;
         }
 
         @Override
-        public int compareTo(ComparableIterator that)
-        {
+        public int compareTo(ComparableIterator that) {
             int result = comparator.compare(this.nextElement.getKey(), that.nextElement.getKey());
             if (result == 0) {
                 result = Integer.compare(this.ordinal, that.ordinal);
