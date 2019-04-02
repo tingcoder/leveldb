@@ -1,4 +1,3 @@
-
 package org.iq80.leveldb.slice;
 
 import java.io.IOException;
@@ -8,6 +7,9 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.ScatteringByteChannel;
 import java.nio.charset.Charset;
 
+/**
+ * @author yf
+ */
 public class DynamicSliceOutput extends SliceOutput {
     private Slice slice;
     private int size;
@@ -104,8 +106,7 @@ public class DynamicSliceOutput extends SliceOutput {
     }
 
     @Override
-    public int writeBytes(InputStream in, int length)
-            throws IOException {
+    public int writeBytes(InputStream in, int length) throws IOException {
         slice = Slices.ensureSize(slice, size + length);
         int writtenBytes = slice.setBytes(size, in, length);
         if (writtenBytes > 0) {
@@ -115,8 +116,7 @@ public class DynamicSliceOutput extends SliceOutput {
     }
 
     @Override
-    public int writeBytes(ScatteringByteChannel in, int length)
-            throws IOException {
+    public int writeBytes(ScatteringByteChannel in, int length) throws IOException {
         slice = Slices.ensureSize(slice, size + length);
         int writtenBytes = slice.setBytes(size, in, length);
         if (writtenBytes > 0) {
@@ -126,8 +126,7 @@ public class DynamicSliceOutput extends SliceOutput {
     }
 
     @Override
-    public int writeBytes(FileChannel in, int position, int length)
-            throws IOException {
+    public int writeBytes(FileChannel in, int position, int length) throws IOException {
         slice = Slices.ensureSize(slice, size + length);
         int writtenBytes = slice.setBytes(size, in, position, length);
         if (writtenBytes > 0) {

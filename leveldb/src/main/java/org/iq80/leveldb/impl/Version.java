@@ -4,6 +4,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
+import lombok.Getter;
+import lombok.Setter;
 import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.util.InternalIterator;
 import org.iq80.leveldb.util.InternalTableIterator;
@@ -32,6 +34,8 @@ import static org.iq80.leveldb.impl.VersionSet.MAX_GRAND_PARENT_OVERLAP_BYTES;
  * 提供数据查找服务: LookupResult get(LookupKey key)
  * >>> 先尝试从Level0查找，找到即返回
  * >>> 尝试从其他Level查找数据，找到即返回
+ *
+ * @author yf
  */
 public class Version implements SeekingIterable<InternalKey, Slice> {
     private final AtomicInteger retained = new AtomicInteger(1);
@@ -39,10 +43,16 @@ public class Version implements SeekingIterable<InternalKey, Slice> {
     private final Level0 level0;
     private final List<Level> levels;
 
-    // move these mutable fields somewhere else
+    @Getter
     private FileMetaData fileToCompact;
+    @Getter
+    @Setter
     private int compactionLevel;
+    @Getter
+    @Setter
     private int fileToCompactLevel;
+    @Getter
+    @Setter
     private double compactionScore;
 
     public Version(VersionSet versionSet) {
@@ -96,22 +106,6 @@ public class Version implements SeekingIterable<InternalKey, Slice> {
 
     public final InternalKeyComparator getInternalKeyComparator() {
         return versionSet.getInternalKeyComparator();
-    }
-
-    public synchronized int getCompactionLevel() {
-        return compactionLevel;
-    }
-
-    public synchronized void setCompactionLevel(int compactionLevel) {
-        this.compactionLevel = compactionLevel;
-    }
-
-    public synchronized double getCompactionScore() {
-        return compactionScore;
-    }
-
-    public synchronized void setCompactionScore(double compactionScore) {
-        this.compactionScore = compactionScore;
     }
 
     @Override
@@ -224,7 +218,6 @@ public class Version implements SeekingIterable<InternalKey, Slice> {
     }
 
 
-
     /**
      * 根据层级拿到文件集合
      *
@@ -265,14 +258,6 @@ public class Version implements SeekingIterable<InternalKey, Slice> {
             return true;
         }
         return false;
-    }
-
-    public FileMetaData getFileToCompact() {
-        return fileToCompact;
-    }
-
-    public int getFileToCompactLevel() {
-        return fileToCompactLevel;
     }
 
     public long getApproximateOffsetOf(InternalKey key) {

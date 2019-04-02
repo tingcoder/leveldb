@@ -16,6 +16,11 @@ import org.iq80.leveldb.util.VariableLengthQuantity;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * VersionEdit可以使用encode()方法序列化为Slice
+ *
+ * @author yf
+ */
 @ToString
 @NoArgsConstructor
 public class VersionEdit {
@@ -63,13 +68,7 @@ public class VersionEdit {
         return ImmutableMultimap.copyOf(newFiles);
     }
 
-    // Add the specified file at the specified level.
-    // REQUIRES: This version has not been saved (see VersionSet::SaveTo)
-    // REQUIRES: "smallest" and "largest" are smallest and largest keys in file
-    public void addFile(int level, long fileNumber,
-                        long fileSize,
-                        InternalKey smallest,
-                        InternalKey largest) {
+    public void addFile(int level, long fileNumber, long fileSize, InternalKey smallest, InternalKey largest) {
         FileMetaData fileMetaData = new FileMetaData(fileNumber, fileSize, smallest, largest);
         addFile(level, fileMetaData);
     }
@@ -86,11 +85,15 @@ public class VersionEdit {
         return ImmutableMultimap.copyOf(deletedFiles);
     }
 
-    // Delete the specified "file" from the specified "level".
     public void deleteFile(int level, long fileNumber) {
         deletedFiles.put(level, fileNumber);
     }
 
+    /**
+     * 将VersionEdity 序列化为一个Slice
+     *
+     * @return
+     */
     public Slice encode() {
         DynamicSliceOutput dynamicSliceOutput = new DynamicSliceOutput(4096);
         for (VersionEditTag versionEditTag : VersionEditTag.values()) {

@@ -110,7 +110,6 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
             log.info("{}已经存在，不需要VersionSet.initializeIfNeeded()", currentFile.getName());
             return;
         }
-        //如工作目录下的"CURRENT"文件不存在，则进行初始化
 
         VersionEdit edit = new VersionEdit();
         edit.setComparatorName(internalKeyComparator.name());
@@ -121,16 +120,19 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
         //默认为0
         edit.setLastSequenceNumber(lastSequence);
 
-        //指向"MANIFEST"的日志写入工具
+        //指向"MANIFEST"的日志写入工具，编号默认为1
         File maniFestFile = new File(databaseDir, Filename.descriptorFileName(manifestFileNumber));
         LogWriter log = Logs.createLogWriter(maniFestFile, manifestFileNumber);
         try {
+            //写入快照
             writeSnapshot(log);
+            //写入当前版本的编辑信息
             log.addRecord(edit.encode(), false);
         } finally {
             log.close();
         }
 
+        //将"MANIFEST-1"写入到CURRENT文件中
         Filename.setCurrentFile(databaseDir, log.getFileNumber());
     }
 
