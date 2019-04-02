@@ -3,6 +3,8 @@ package org.iq80.leveldb.impl;
 import com.google.common.base.Joiner;
 import com.google.common.collect.*;
 import com.google.common.io.Files;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.table.UserComparator;
@@ -34,8 +36,10 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
 
     public static final int TARGET_FILE_SIZE = 2 * 1048576;
 
-    // Maximum bytes of overlaps in grandparent (i.e., level+2) before we
-    // stop building a single file in a level.level+1 compaction.
+    /**
+     * Maximum bytes of overlaps in grandparent (i.e., level+2) before we
+     * stop building a single file in a level.level+1 compaction.
+     **/
     public static final long MAX_GRAND_PARENT_OVERLAP_BYTES = 10 * TARGET_FILE_SIZE;
 
     private final AtomicLong nextFileNumber = new AtomicLong(2);
@@ -43,28 +47,36 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
     /**
      * MANIFEST文件编号
      */
+    @Getter
     private long manifestFileNumber = 1;
 
     /**
      * 当前的版本
      */
+    @Getter
     private Version current;
     /**
      * 最新sequence
      */
+    @Getter
+    @Setter
     private long lastSequence;
     /**
      * 日志序列号
      */
+    @Getter
     private long logNumber;
     /**
      * pre日志序列号
      */
+    @Getter
     private long prevLogNumber;
 
     private final Map<Version, Object> activeVersions = new MapMaker().weakKeys().makeMap();
     private final File databaseDir;
+    @Getter
     private final TableCache tableCache;
+    @Getter
     private final InternalKeyComparator internalKeyComparator;
 
     /**
@@ -162,32 +174,8 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
         assert removed : "Expected the version to still be in the active set";
     }
 
-    public InternalKeyComparator getInternalKeyComparator() {
-        return internalKeyComparator;
-    }
-
-    public TableCache getTableCache() {
-        return tableCache;
-    }
-
-    public Version getCurrent() {
-        return current;
-    }
-
-    public long getManifestFileNumber() {
-        return manifestFileNumber;
-    }
-
     public long getNextFileNumber() {
         return nextFileNumber.getAndIncrement();
-    }
-
-    public long getLogNumber() {
-        return logNumber;
-    }
-
-    public long getPrevLogNumber() {
-        return prevLogNumber;
     }
 
     @Override
@@ -229,15 +217,6 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
 
     public long numberOfBytesInLevel(int level) {
         return current.numberOfFilesInLevel(level);
-    }
-
-    public long getLastSequence() {
-        return lastSequence;
-    }
-
-    public void setLastSequence(long newLastSequence) {
-        checkArgument(newLastSequence >= lastSequence, "Expected newLastSequence to be greater than or equal to current lastSequence");
-        this.lastSequence = newLastSequence;
     }
 
     public void logAndApply(VersionEdit edit) throws IOException {
@@ -550,13 +529,6 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
 
                 List<FileMetaData> expanded1 = getOverlappingInputs(level + 1, newStart, newLimit);
                 if (expanded1.size() == levelUpInputs.size()) {
-//              Log(options_->info_log,
-//                  "Expanding@%d %d+%d to %d+%d\n",
-//                  level,
-//                  int(c->inputs_[0].size()),
-//                  int(c->inputs_[1].size()),
-//                  int(expanded0.size()),
-//                  int(expanded1.size()));
                     smallest = newStart;
                     largest = newLimit;
                     levelInputs = expanded0;
@@ -575,13 +547,6 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
         if (level + 2 < NUM_LEVELS) {
             grandparents = getOverlappingInputs(level + 2, allStart, allLimit);
         }
-
-//        if (false) {
-//            Log(options_ - > info_log, "Compacting %d '%s' .. '%s'",
-//                    level,
-//                    EscapeString(smallest.Encode()).c_str(),
-//                    EscapeString(largest.Encode()).c_str());
-//        }
 
         Compaction compaction = new Compaction(current, level, levelInputs, levelUpInputs, grandparents);
 

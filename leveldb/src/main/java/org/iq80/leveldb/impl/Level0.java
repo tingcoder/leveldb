@@ -3,7 +3,6 @@ package org.iq80.leveldb.impl;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.iq80.leveldb.slice.Slice;
-import org.iq80.leveldb.table.UserComparator;
 import org.iq80.leveldb.util.Level0Iterator;
 
 import java.util.ArrayList;
@@ -12,10 +11,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.iq80.leveldb.impl.SequenceNumber.MAX_SEQUENCE_NUMBER;
-import static org.iq80.leveldb.impl.ValueType.VALUE;
-
-// todo this class should be immutable
 @Slf4j
 public class Level0 extends LevelBase implements SeekingIterable<InternalKey, Slice> {
 
@@ -70,15 +65,6 @@ public class Level0 extends LevelBase implements SeekingIterable<InternalKey, Sl
                 readStats.setSeekFileLevel(0);
             }
         }
-
         return null;
-    }
-
-    public boolean someFileOverlapsRange(Slice smallestUserKey, Slice largestUserKey) {
-        InternalKey smallestInternalKey = new InternalKey(smallestUserKey, MAX_SEQUENCE_NUMBER, VALUE);
-        int index = findFile(smallestInternalKey);
-
-        UserComparator userComparator = internalKeyComparator.getUserComparator();
-        return ((index < files.size()) && userComparator.compare(largestUserKey, files.get(index).getSmallest().getUserKey()) >= 0);
     }
 }

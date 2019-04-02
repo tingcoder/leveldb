@@ -18,7 +18,6 @@
             <groupId>org.iq80.leveldb</groupId>
             <artifactId>leveldb-api</artifactId>
         </dependency>
-
         <dependency>
             <groupId>org.xerial.snappy</groupId>
             <artifactId>snappy-java</artifactId>

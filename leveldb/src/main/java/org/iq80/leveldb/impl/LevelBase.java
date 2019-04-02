@@ -2,6 +2,7 @@ package org.iq80.leveldb.impl;
 
 import lombok.Getter;
 import org.iq80.leveldb.slice.Slice;
+import org.iq80.leveldb.table.UserComparator;
 import org.iq80.leveldb.util.InternalTableIterator;
 
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.Map;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static org.iq80.leveldb.impl.SequenceNumber.MAX_SEQUENCE_NUMBER;
 import static org.iq80.leveldb.impl.ValueType.VALUE;
 
 /***
@@ -109,6 +111,14 @@ public class LevelBase {
                 fileMetaDataList.add(fileMetaData);
             }
         }
+    }
+
+    public boolean someFileOverlapsRange(Slice smallestUserKey, Slice largestUserKey) {
+        InternalKey smallestInternalKey = new InternalKey(smallestUserKey, MAX_SEQUENCE_NUMBER, VALUE);
+        int index = findFile(smallestInternalKey);
+
+        UserComparator userComparator = internalKeyComparator.getUserComparator();
+        return ((index < files.size()) && userComparator.compare(largestUserKey, files.get(index).getSmallest().getUserKey()) >= 0);
     }
 
     @Override

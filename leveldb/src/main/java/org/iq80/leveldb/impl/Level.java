@@ -19,7 +19,6 @@ package org.iq80.leveldb.impl;
 
 import com.google.common.collect.Lists;
 import org.iq80.leveldb.slice.Slice;
-import org.iq80.leveldb.table.UserComparator;
 import org.iq80.leveldb.util.LevelIterator;
 
 import java.util.ArrayList;
@@ -28,8 +27,6 @@ import java.util.Comparator;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.iq80.leveldb.impl.SequenceNumber.MAX_SEQUENCE_NUMBER;
-import static org.iq80.leveldb.impl.ValueType.VALUE;
 
 /**
  * @author TODO 此类变成不可变类型
@@ -109,11 +106,4 @@ public class Level extends LevelBase implements SeekingIterable<InternalKey, Sli
         return insertionPoint;
     }
 
-    public boolean someFileOverlapsRange(Slice smallestUserKey, Slice largestUserKey) {
-        InternalKey smallestInternalKey = new InternalKey(smallestUserKey, MAX_SEQUENCE_NUMBER, VALUE);
-        int index = findFile(smallestInternalKey);
-
-        UserComparator userComparator = internalKeyComparator.getUserComparator();
-        return ((index < files.size()) && userComparator.compare(largestUserKey, files.get(index).getSmallest().getUserKey()) >= 0);
-    }
 }

@@ -34,8 +34,4 @@ public class LookupResult {
         }
         this.deleted = deleted;
     }
-
-    public boolean isDeleted() {
-        return deleted;
-    }
 }

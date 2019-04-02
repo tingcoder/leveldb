@@ -72,8 +72,6 @@ public class MMapLogWriter implements LogWriter {
     @Override
     public synchronized void delete() throws IOException {
         close();
-
-        // try to delete the file
         file.delete();
     }
 

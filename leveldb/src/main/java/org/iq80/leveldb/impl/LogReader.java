@@ -10,6 +10,9 @@ import static org.iq80.leveldb.impl.LogConstants.BLOCK_SIZE;
 import static org.iq80.leveldb.impl.LogConstants.HEADER_SIZE;
 import static org.iq80.leveldb.impl.Logs.getChunkChecksum;
 
+/**
+ * @author yf
+ */
 public class LogReader {
     private final FileChannel fileChannel;
 
