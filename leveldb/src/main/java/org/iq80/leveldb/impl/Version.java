@@ -24,7 +24,15 @@ import static org.iq80.leveldb.impl.DbConstants.NUM_LEVELS;
 import static org.iq80.leveldb.impl.SequenceNumber.MAX_SEQUENCE_NUMBER;
 import static org.iq80.leveldb.impl.VersionSet.MAX_GRAND_PARENT_OVERLAP_BYTES;
 
-// todo this class should be immutable
+/**
+ * 版本对象：
+ * >>> 1. 所属的VersionSet
+ * >>> 2. 持有的Level0
+ * >>> 3. 持有的Level集合
+ * 提供数据查找服务: LookupResult get(LookupKey key)
+ * >>> 先尝试从Level0查找，找到即返回
+ * >>> 尝试从其他Level查找数据，找到即返回
+ */
 public class Version implements SeekingIterable<InternalKey, Slice> {
     private final AtomicInteger retained = new AtomicInteger(1);
     private final VersionSet versionSet;
@@ -60,23 +68,25 @@ public class Version implements SeekingIterable<InternalKey, Slice> {
     }
 
     public void assertNoOverlappingFiles(int level) {
-        if (level > 0) {
-            Collection<FileMetaData> files = getFiles().asMap().get(level);
-            if (files != null) {
-                long previousFileNumber = 0;
-                InternalKey previousEnd = null;
-                for (FileMetaData fileMetaData : files) {
-                    if (previousEnd != null) {
-                        checkArgument(getInternalKeyComparator().compare(
-                                previousEnd,
-                                fileMetaData.getSmallest()
-                        ) < 0, "Overlapping files %s and %s in level %s", previousFileNumber, fileMetaData.getNumber(), level);
-                    }
-
-                    previousFileNumber = fileMetaData.getNumber();
-                    previousEnd = fileMetaData.getLargest();
-                }
+        if (level <= 0) {
+            return;
+        }
+        Collection<FileMetaData> files = getFiles().asMap().get(level);
+        if (files == null) {
+            return;
+        }
+        long previousFileNumber = 0;
+        InternalKey previousEnd = null;
+        for (FileMetaData fileMetaData : files) {
+            if (previousEnd != null) {
+                checkArgument(getInternalKeyComparator().compare(
+                        previousEnd,
+                        fileMetaData.getSmallest()
+                ) < 0, "Overlapping files %s and %s in level %s", previousFileNumber, fileMetaData.getNumber(), level);
             }
+
+            previousFileNumber = fileMetaData.getNumber();
+            previousEnd = fileMetaData.getLargest();
         }
     }
 
@@ -196,6 +206,11 @@ public class Version implements SeekingIterable<InternalKey, Slice> {
         }
     }
 
+    /**
+     * 返回当前Version的文件按集合，level->List<SST文件>的map结构
+     *
+     * @return
+     */
     public Multimap<Integer, FileMetaData> getFiles() {
         ImmutableMultimap.Builder<Integer, FileMetaData> builder = ImmutableMultimap.builder();
         builder = builder.orderKeysBy(natural());
@@ -208,6 +223,14 @@ public class Version implements SeekingIterable<InternalKey, Slice> {
         return builder.build();
     }
 
+
+
+    /**
+     * 根据层级拿到文件集合
+     *
+     * @param level level值
+     * @return
+     */
     public List<FileMetaData> getFiles(int level) {
         if (level == 0) {
             return level0.getFiles();
@@ -216,6 +239,12 @@ public class Version implements SeekingIterable<InternalKey, Slice> {
         }
     }
 
+    /**
+     * 为某个level增加文件实例
+     *
+     * @param level        level值
+     * @param fileMetaData 文件元数据
+     */
     public void addFile(int level, FileMetaData fileMetaData) {
         if (level == 0) {
             level0.addFile(fileMetaData);
