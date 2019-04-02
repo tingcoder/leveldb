@@ -400,8 +400,7 @@ public final class Slice implements Comparable<Slice> {
      *                                   if {@code index + length} is greater than {@code this.capacity}
      * @throws java.io.IOException       if the specified channel threw an exception during I/O
      */
-    public int setBytes(int index, ScatteringByteChannel in, int length)
-            throws IOException {
+    public int setBytes(int index, ScatteringByteChannel in, int length) throws IOException {
         checkPositionIndexes(index, index + length, this.length);
         index += offset;
         ByteBuffer buf = ByteBuffer.wrap(data, index, length);
@@ -429,8 +428,7 @@ public final class Slice implements Comparable<Slice> {
         return readBytes;
     }
 
-    public int setBytes(int index, FileChannel in, int position, int length)
-            throws IOException {
+    public int setBytes(int index, FileChannel in, int position, int length) throws IOException {
         checkPositionIndexes(index, index + length, this.length);
         index += offset;
         ByteBuffer buf = ByteBuffer.wrap(data, index, length);

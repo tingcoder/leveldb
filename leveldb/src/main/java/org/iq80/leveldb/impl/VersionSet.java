@@ -657,20 +657,6 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
             for (Entry<Integer, FileMetaData> entry : edit.getNewFiles().entries()) {
                 Integer level = entry.getKey();
                 FileMetaData fileMetaData = entry.getValue();
-
-                // We arrange to automatically compact this file after
-                // a certain number of seeks.  Let's assume:
-                //   (1) One seek costs 10ms
-                //   (2) Writing or reading 1MB costs 10ms (100MB/s)
-                //   (3) A compaction of 1MB does 25MB of IO:
-                //         1MB read from this level
-                //         10-12MB read from next level (boundaries may be misaligned)
-                //         10-12MB written to next level
-                // This implies that 25 seeks cost the same as the compaction
-                // of 1MB of data.  I.e., one seek costs approximately the
-                // same as the compaction of 40KB of data.  We are a little
-                // conservative and allow approximately one seek for every 16KB
-                // of data before triggering a compaction.
                 int allowedSeeks = (int) (fileMetaData.getFileSize() / 16384);
                 if (allowedSeeks < 100) {
                     allowedSeeks = 100;
@@ -710,10 +696,8 @@ public class VersionSet implements SeekingIterable<InternalKey, Slice> {
                     maybeAddFile(version, level, fileMetaData);
                 }
 
-                //#ifndef NDEBUG  todo
                 // Make sure there is no overlap in levels > 0
                 version.assertNoOverlappingFiles();
-                //#endif
             }
         }
 
