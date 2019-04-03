@@ -1,5 +1,6 @@
 package org.iq80.leveldb.impl;
 
+import lombok.Getter;
 import org.iq80.leveldb.slice.*;
 
 import java.io.IOException;
@@ -11,6 +12,7 @@ import static org.iq80.leveldb.impl.LogConstants.HEADER_SIZE;
 import static org.iq80.leveldb.impl.Logs.getChunkChecksum;
 
 /**
+ * 日志文件的reader工具
  * @author yf
  */
 public class LogReader {
@@ -33,6 +35,7 @@ public class LogReader {
     /**
      * Offset of the last record returned by readRecord.
      */
+    @Getter
     private long lastRecordOffset;
 
     /**
@@ -65,10 +68,6 @@ public class LogReader {
         this.monitor = monitor;
         this.verifyChecksums = verifyChecksums;
         this.initialOffset = initialOffset;
-    }
-
-    public long getLastRecordOffset() {
-        return lastRecordOffset;
     }
 
     /**
