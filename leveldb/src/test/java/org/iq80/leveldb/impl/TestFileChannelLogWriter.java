@@ -1,5 +1,6 @@
 package org.iq80.leveldb.impl;
 
+import org.iq80.leveldb.log.*;
 import org.iq80.leveldb.slice.Slice;
 import org.testng.annotations.Test;
 

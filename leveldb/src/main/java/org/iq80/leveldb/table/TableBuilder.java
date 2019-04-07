@@ -82,8 +82,7 @@ public class TableBuilder {
         return entryCount;
     }
 
-    public long getFileSize()
-            throws IOException {
+    public long getFileSize() throws IOException {
         return position + dataBlockBuilder.currentSizeEstimate();
     }
 

@@ -1,4 +1,4 @@
-package org.iq80.leveldb.impl;
+package org.iq80.leveldb.log;
 
 import static org.iq80.leveldb.util.SizeOf.*;
 

@@ -1,4 +1,4 @@
-package org.iq80.leveldb.impl;
+package org.iq80.leveldb.log;
 
 import org.iq80.leveldb.slice.Slice;
 

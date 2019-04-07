@@ -1,42 +1,25 @@
-/*
- * Copyright (C) 2011 the original author or authors.
- * See the notice.md file distributed with this work for additional
- * information regarding copyright ownership.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.iq80.leveldb.util;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
+import org.iq80.leveldb.impl.Filename;
 
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-public final class FileUtils
-{
+public final class FileUtils {
     private static final int TEMP_DIR_ATTEMPTS = 10000;
 
-    private FileUtils()
-    {
+    private FileUtils() {
     }
 
-    public static boolean isSymbolicLink(File file)
-    {
+    public static boolean isSymbolicLink(File file) {
         try {
             File canonicalFile = file.getCanonicalFile();
             File absoluteFile = file.getAbsoluteFile();
@@ -46,15 +29,13 @@ public final class FileUtils
                     // or the canonical parent path is not the same as the file's parent path,
                     // provided the file has a parent path
                     parentFile != null && !parentFile.getCanonicalPath().equals(canonicalFile.getParent());
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             // error on the side of caution
             return true;
         }
     }
 
-    public static ImmutableList<File> listFiles(File dir)
-    {
+    public static ImmutableList<File> listFiles(File dir) {
         File[] files = dir.listFiles();
         if (files == null) {
             return ImmutableList.of();
@@ -62,8 +43,7 @@ public final class FileUtils
         return ImmutableList.copyOf(files);
     }
 
-    public static ImmutableList<File> listFiles(File dir, FilenameFilter filter)
-    {
+    public static ImmutableList<File> listFiles(File dir, FilenameFilter filter) {
         File[] files = dir.listFiles(filter);
         if (files == null) {
             return ImmutableList.of();
@@ -71,13 +51,11 @@ public final class FileUtils
         return ImmutableList.copyOf(files);
     }
 
-    public static File createTempDir(String prefix)
-    {
+    public static File createTempDir(String prefix) {
         return createTempDir(new File(System.getProperty("java.io.tmpdir")), prefix);
     }
 
-    public static File createTempDir(File parentDir, String prefix)
-    {
+    public static File createTempDir(File parentDir, String prefix) {
         String baseName = "";
         if (prefix != null) {
             baseName += prefix + "-";
@@ -95,8 +73,7 @@ public final class FileUtils
                 + baseName + "0 to " + baseName + (TEMP_DIR_ATTEMPTS - 1) + ')');
     }
 
-    public static boolean deleteDirectoryContents(File directory)
-    {
+    public static boolean deleteDirectoryContents(File directory) {
         checkArgument(directory.isDirectory(), "Not a directory: %s", directory);
 
         // Don't delete symbolic link directories
@@ -111,8 +88,7 @@ public final class FileUtils
         return success;
     }
 
-    public static boolean deleteRecursively(File file)
-    {
+    public static boolean deleteRecursively(File file) {
         boolean success = true;
         if (file.isDirectory()) {
             success = deleteDirectoryContents(file);
@@ -121,8 +97,7 @@ public final class FileUtils
         return file.delete() && success;
     }
 
-    public static boolean copyDirectoryContents(File src, File target)
-    {
+    public static boolean copyDirectoryContents(File src, File target) {
         checkArgument(src.isDirectory(), "Source dir is not a directory: %s", src);
 
         // Don't delete symbolic link directories
@@ -140,40 +115,34 @@ public final class FileUtils
         return success;
     }
 
-    public static boolean copyRecursively(File src, File target)
-    {
+    public static boolean copyRecursively(File src, File target) {
         if (src.isDirectory()) {
             return copyDirectoryContents(src, target);
-        }
-        else {
+        } else {
             try {
                 Files.copy(src, target);
                 return true;
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 return false;
             }
         }
     }
 
-    public static File newFile(String parent, String... paths)
-    {
+    public static File newFile(String parent, String... paths) {
         requireNonNull(parent, "parent is null");
         requireNonNull(paths, "paths is null");
 
         return newFile(new File(parent), ImmutableList.copyOf(paths));
     }
 
-    public static File newFile(File parent, String... paths)
-    {
+    public static File newFile(File parent, String... paths) {
         requireNonNull(parent, "parent is null");
         requireNonNull(paths, "paths is null");
 
         return newFile(parent, ImmutableList.copyOf(paths));
     }
 
-    public static File newFile(File parent, Iterable<String> paths)
-    {
+    public static File newFile(File parent, Iterable<String> paths) {
         requireNonNull(parent, "parent is null");
         requireNonNull(paths, "paths is null");
 
@@ -182,5 +151,23 @@ public final class FileUtils
             result = new File(result, path);
         }
         return result;
+    }
+
+    public static List<Long> getLogFileNums(File databaseDir, Long minLogNumber, Long previousLogNumber) {
+        List<File> filenames = Filename.listFiles(databaseDir);
+        List<Long> logFileNumbers = new ArrayList<>();
+        for (File filename : filenames) {
+            Filename.FileInfo fileInfo = Filename.parseFileName(filename);
+            if (fileInfo == null) {
+                continue;
+            }
+            if (fileInfo.getFileType() != Filename.FileType.LOG) {
+                continue;
+            }
+            if ((fileInfo.getFileNumber() >= minLogNumber || fileInfo.getFileNumber() == previousLogNumber)) {
+                logFileNumbers.add(fileInfo.getFileNumber());
+            }
+        }
+        return logFileNumbers;
     }
 }

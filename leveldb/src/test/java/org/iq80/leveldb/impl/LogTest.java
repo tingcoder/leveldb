@@ -1,6 +1,10 @@
 package org.iq80.leveldb.impl;
 
 import com.google.common.collect.ImmutableList;
+import org.iq80.leveldb.log.LogMonitor;
+import org.iq80.leveldb.log.LogReader;
+import org.iq80.leveldb.log.LogWriter;
+import org.iq80.leveldb.log.Logs;
 import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.slice.SliceOutput;
 import org.iq80.leveldb.slice.Slices;

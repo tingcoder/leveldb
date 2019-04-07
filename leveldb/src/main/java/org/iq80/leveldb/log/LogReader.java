@@ -1,4 +1,4 @@
-package org.iq80.leveldb.impl;
+package org.iq80.leveldb.log;
 
 import lombok.Getter;
 import org.iq80.leveldb.slice.*;
@@ -6,10 +6,10 @@ import org.iq80.leveldb.slice.*;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 
-import static org.iq80.leveldb.impl.LogChunkType.*;
-import static org.iq80.leveldb.impl.LogConstants.BLOCK_SIZE;
-import static org.iq80.leveldb.impl.LogConstants.HEADER_SIZE;
-import static org.iq80.leveldb.impl.Logs.getChunkChecksum;
+import static org.iq80.leveldb.log.LogChunkType.*;
+import static org.iq80.leveldb.log.LogConstants.BLOCK_SIZE;
+import static org.iq80.leveldb.log.LogConstants.HEADER_SIZE;
+import static org.iq80.leveldb.log.Logs.getChunkChecksum;
 
 /**
  * 日志文件的reader工具

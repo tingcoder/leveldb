@@ -6,6 +6,9 @@ import com.google.common.io.Files;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.iq80.leveldb.log.LogReader;
+import org.iq80.leveldb.log.LogWriter;
+import org.iq80.leveldb.log.Logs;
 import org.iq80.leveldb.slice.Slice;
 import org.iq80.leveldb.table.UserComparator;
 import org.iq80.leveldb.util.InternalIterator;
@@ -25,7 +28,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.iq80.leveldb.impl.DbConstants.NUM_LEVELS;
-import static org.iq80.leveldb.impl.LogMonitors.throwExceptionMonitor;
+import static org.iq80.leveldb.log.LogMonitors.throwExceptionMonitor;
 
 /**
  * @author yf
