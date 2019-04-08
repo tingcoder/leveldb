@@ -13,6 +13,7 @@ import static org.iq80.leveldb.log.Logs.getChunkChecksum;
 
 /**
  * 日志文件的reader工具
+ *
  * @author yf
  */
 public class LogReader {
@@ -131,43 +132,52 @@ public class LogReader {
 
                 case FIRST:
                     if (inFragmentedRecord) {
+                        //当前已经是局部chunk说明文件格式有误
                         reportCorruption(recordScratch.size(), "Partial record without end");
-                        // clear the scratch and start over from this chunk
+                        //清空缓冲区
                         recordScratch.reset();
                     }
                     prospectiveRecordOffset = physicalRecordOffset;
+
+                    //将当前chunk写入缓冲区
                     recordScratch.writeBytes(currentChunk);
+
+                    //标记为局部chunk
                     inFragmentedRecord = true;
                     break;
 
                 case MIDDLE:
                     if (!inFragmentedRecord) {
+                        //当前不是局部chunk说明文件格式有问题
                         reportCorruption(recordScratch.size(), "Missing start of fragmented record");
-
-                        // clear the scratch and skip this chunk
+                        //清空缓冲区
                         recordScratch.reset();
                     } else {
+                        //将当前chunk追加到缓冲区
                         recordScratch.writeBytes(currentChunk);
                     }
                     break;
 
                 case LAST:
                     if (!inFragmentedRecord) {
+                        //当前不是局部chunk说明文件格式有问题
                         reportCorruption(recordScratch.size(), "Missing start of fragmented record");
-
-                        // clear the scratch and skip this chunk
+                        //清空缓冲区
                         recordScratch.reset();
                     } else {
+                        //将当前chunk追加到缓冲区
                         recordScratch.writeBytes(currentChunk);
                         lastRecordOffset = prospectiveRecordOffset;
+
+                        //返回结果
                         return recordScratch.slice().copySlice();
                     }
                     break;
 
                 case EOF:
                     if (inFragmentedRecord) {
+                        //当前已经是局部chunk说明文件格式有误
                         reportCorruption(recordScratch.size(), "Partial record without end");
-
                         // clear the scratch and return
                         recordScratch.reset();
                     }
@@ -175,6 +185,7 @@ public class LogReader {
 
                 case BAD_CHUNK:
                     if (inFragmentedRecord) {
+                        //当前已经是局部chunk说明文件格式有误
                         reportCorruption(recordScratch.size(), "Error in middle of record");
                         inFragmentedRecord = false;
                         recordScratch.reset();
@@ -182,12 +193,15 @@ public class LogReader {
                     break;
 
                 default:
+                    //遇到"UNKNOWN"类型的chunk
                     int dropSize = currentChunk.length();
                     if (inFragmentedRecord) {
                         dropSize += recordScratch.size();
                     }
                     reportCorruption(dropSize, String.format("Unexpected chunk type %s", chunkType));
+                    //重置局部chunk标记
                     inFragmentedRecord = false;
+                    //清空缓冲区
                     recordScratch.reset();
                     break;
             }
@@ -198,10 +212,10 @@ public class LogReader {
      * Return type, or one of the preceding special values
      */
     private LogChunkType readNextChunk() {
-        // clear the current chunk
+        //清理当前chunk
         currentChunk = Slices.EMPTY_SLICE;
 
-        // read the next block if necessary
+        //若当前block不足HEADER_SIZE,读取下一个block
         if (currentBlock.available() < HEADER_SIZE) {
             if (!readNextBlock()) {
                 if (eof) {
@@ -210,14 +224,14 @@ public class LogReader {
             }
         }
 
-        // parse header
+        //解析chunk的头协议
         int expectedChecksum = currentBlock.readInt();
         int length = currentBlock.readUnsignedByte();
         length = length | currentBlock.readUnsignedByte() << 8;
         byte chunkTypeId = currentBlock.readByte();
         LogChunkType chunkType = getLogChunkTypeByPersistentId(chunkTypeId);
 
-        // verify length
+        //block剩余长度校验
         if (length > currentBlock.available()) {
             int dropSize = currentBlock.available() + HEADER_SIZE;
             reportCorruption(dropSize, "Invalid chunk length");
@@ -225,7 +239,7 @@ public class LogReader {
             return BAD_CHUNK;
         }
 
-        // skip zero length records
+        //跳过ZERO_TYPE类型的chunk
         if (chunkType == ZERO_TYPE && length == 0) {
             // Skip zero length record without reporting any drops since
             // such records are produced by the writing code.
@@ -239,10 +253,11 @@ public class LogReader {
             return BAD_CHUNK;
         }
 
-        // read the chunk
+        //读取当前chunk
         currentChunk = currentBlock.readBytes(length);
 
         if (verifyChecksums) {
+            // crc32校验
             int actualChecksum = getChunkChecksum(chunkTypeId, currentChunk);
             if (actualChecksum != expectedChecksum) {
                 // Drop the rest of the buffer since "length" itself may have
@@ -266,7 +281,12 @@ public class LogReader {
         return chunkType;
     }
 
-    public boolean readNextBlock() {
+    /**
+     * 读取当前block
+     *
+     * @return
+     */
+    private boolean readNextBlock() {
         if (eof) {
             return false;
         }
@@ -274,7 +294,7 @@ public class LogReader {
         // clear the block
         blockScratch.reset();
 
-        // read the next full block
+        // 读取一个完整的block
         while (blockScratch.writableBytes() > 0) {
             try {
                 int bytesRead = blockScratch.writeBytes(fileChannel, blockScratch.writableBytes());
@@ -290,8 +310,9 @@ public class LogReader {
                 eof = true;
                 return false;
             }
-
         }
+
+        //填充当前block
         currentBlock = blockScratch.slice().input();
         return currentBlock.isReadable();
     }

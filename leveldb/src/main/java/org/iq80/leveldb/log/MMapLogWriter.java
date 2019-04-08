@@ -75,9 +75,10 @@ public class MMapLogWriter extends AbstractLogWriter {
         // create header
         Slice header = LogHeadUtils.newLogRecordHeader(type, slice);
 
-        // write the header and the payload
+
         ensureCapacity(header.length() + slice.length());
 
+        // write the header and the payload
         header.getBytes(0, mappedByteBuffer);
         slice.getBytes(0, mappedByteBuffer);
 

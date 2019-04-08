@@ -8,7 +8,6 @@ import org.iq80.leveldb.slice.SliceInput;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.nio.charset.Charset;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.base.Preconditions.checkState;

@@ -22,7 +22,7 @@ public class LevelDBTests {
     public static void main(String[] args) throws IOException {
         LevelDBTests lt = new LevelDBTests();
         // lt.writeData("user-2-name", "雨果");
-       //  lt.writeData("user-3-name", "雨果2-d名字");
+         lt.writeData("user-3-name", "雨果2-d名字-update");
 
         lt.deleteData("user-4-name");
 
